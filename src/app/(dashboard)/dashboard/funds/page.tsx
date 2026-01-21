@@ -8,10 +8,11 @@ import { DateFilter } from '@/components/reports/DateFilter'
 import { ExportButtons } from '@/components/reports/ExportButtons'
 
 interface PageProps {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function FundsPage({ searchParams }: PageProps) {
+export default async function FundsPage(props: PageProps) {
+    const searchParams = await props.searchParams
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

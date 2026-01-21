@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/table";
 
 interface PageProps {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function RoiPage({ searchParams }: PageProps) {
+export default async function RoiPage(props: PageProps) {
+    const searchParams = await props.searchParams
     const supabase = await createClient();
     const {
         data: { user },
@@ -101,7 +102,8 @@ export default async function RoiPage({ searchParams }: PageProps) {
 
     invoiceItems?.forEach((item) => {
         // @ts-ignore
-        const product = item.products;
+        const productData = item.products;
+        const product = Array.isArray(productData) ? productData[0] : productData;
         // @ts-ignore
         const invoiceDate = item.invoices?.date.split('T')[0]; // Extract YYYY-MM-DD
 

@@ -11,7 +11,8 @@ export const mockProducts: Product[] = [
         stock: 500,
         unit: "kg",
         minStockAlert: 50,
-        supplier: "City Wholesalers"
+        supplier: "City Wholesalers",
+        type: "physical"
     },
     {
         id: "2",
@@ -23,7 +24,8 @@ export const mockProducts: Product[] = [
         stock: 120,
         unit: "bottle",
         minStockAlert: 20,
-        supplier: "Meghna Group"
+        supplier: "Meghna Group",
+        type: "physical"
     },
     {
         id: "3",
@@ -35,6 +37,7 @@ export const mockProducts: Product[] = [
         stock: 200,
         unit: "pkt",
         minStockAlert: 30,
+        type: "physical"
     }
 ];
 
