@@ -87,6 +87,7 @@ export default async function FundsPage(props: PageProps) {
                     <Suspense fallback={null}>
                         <DateFilter />
                     </Suspense>
+                    <AddTransactionModal />
                 </div>
             </div>
 
