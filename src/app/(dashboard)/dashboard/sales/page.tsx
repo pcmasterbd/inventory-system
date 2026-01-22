@@ -4,6 +4,7 @@ import { getInvoices, getSalesSummary } from "@/app/actions/sales";
 import { PosInterface } from "@/components/sales/PosInterface";
 import { SalesList } from "@/components/sales/SalesList";
 import { SalesSummary } from "@/components/sales/SalesSummary";
+import { BulkSalesInterface } from "@/components/sales/BulkSalesInterface";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default async function SalesPage() {
@@ -18,14 +19,19 @@ export default async function SalesPage() {
                 <h2 className="text-2xl font-bold tracking-tight">বিক্রয় ব্যবস্থাপনা (Sales Management)</h2>
             </div>
 
-            <Tabs defaultValue="pos" className="flex-1 flex flex-col overflow-hidden">
+            <Tabs defaultValue="bulk" className="flex-1 flex flex-col overflow-hidden">
                 <div className="shrink-0 mb-4">
                     <TabsList>
-                        <TabsTrigger value="pos">নতুন বিক্রয় (Point of Sale)</TabsTrigger>
-                        <TabsTrigger value="history">বিক্রয় ইতিহাস (Sales History)</TabsTrigger>
+                        <TabsTrigger value="bulk">ডেইলি শিট (Daily Sheet)</TabsTrigger>
+                        <TabsTrigger value="pos">নতুন বিক্রয় (POS)</TabsTrigger>
+                        <TabsTrigger value="history">বিক্রয় ইতিহাস (History)</TabsTrigger>
                         <TabsTrigger value="summary">সারসংক্ষেপ (Summary)</TabsTrigger>
                     </TabsList>
                 </div>
+
+                <TabsContent value="bulk" className="flex-1 overflow-auto mt-0 border rounded-lg p-4 bg-card h-full data-[state=inactive]:hidden">
+                    <BulkSalesInterface products={products || []} />
+                </TabsContent>
 
                 <TabsContent value="pos" className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden">
                     <PosInterface

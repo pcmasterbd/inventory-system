@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, Minus, Plus, Loader2 } from "lucide-react";
+import { Trash2, Minus, Plus, Loader2, RefreshCcw } from "lucide-react";
 import { CartItem } from "./PosInterface";
+import { Badge } from "@/components/ui/badge";
 
 interface CartProps {
     items: CartItem[];
@@ -18,8 +19,6 @@ interface CartProps {
     onUpdateQuantity: (id: string, delta: number) => void;
     onCheckout: (paid: number, discount: number) => void;
     isProcessing: boolean;
-    mode: 'sale' | 'return';
-    onModeChange: (mode: 'sale' | 'return') => void;
 }
 
 export function Cart({
@@ -30,40 +29,33 @@ export function Cart({
     onRemove,
     onUpdateQuantity,
     onCheckout,
-    isProcessing,
-    mode,
-    onModeChange
+    isProcessing
 }: CartProps) {
     const [discount, setDiscount] = useState("0");
     const [paidAmount, setPaidAmount] = useState("");
 
     const subtotal = items.reduce((sum, item) => sum + (item.selling_price * item.quantity), 0);
     const numDiscount = parseFloat(discount) || 0;
-    const total = Math.max(0, subtotal - numDiscount);
+    const total = subtotal - numDiscount;
+    // Total can be negative (Refund Due)
+
+    // Update default paid amount when total changes
+    useEffect(() => {
+        setPaidAmount(total.toString());
+    }, [total]);
 
     const handleCheckoutClick = () => {
         onCheckout(parseFloat(paidAmount) || 0, numDiscount);
     }
 
     return (
-        <Card className={`h-full flex flex-col ${mode === 'return' ? 'border-red-500/50 bg-red-50/10' : ''}`}>
+        <Card className="h-full flex flex-col">
             <CardHeader className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <CardTitle>{mode === 'sale' ? 'নতুন বিক্রি (New Sale)' : 'ফেরত (Return)'}</CardTitle>
-                    <div className="flex bg-muted rounded-lg p-1">
-                        <button
-                            onClick={() => onModeChange('sale')}
-                            className={`px-3 py-1 text-sm rounded-md transition-all ${mode === 'sale' ? 'bg-background shadow font-medium' : 'text-muted-foreground'}`}
-                        >
-                            Sale
-                        </button>
-                        <button
-                            onClick={() => onModeChange('return')}
-                            className={`px-3 py-1 text-sm rounded-md transition-all ${mode === 'return' ? 'bg-red-100 text-red-700 shadow font-medium' : 'text-muted-foreground'}`}
-                        >
-                            Return
-                        </button>
-                    </div>
+                    <CardTitle>চলমান বিক্রি (Current Bill)</CardTitle>
+                    <Badge variant={total >= 0 ? "default" : "destructive"}>
+                        {total >= 0 ? "Sale" : "Refund/Exchange"}
+                    </Badge>
                 </div>
 
                 <Select value={selectedCustomer} onValueChange={onSelectCustomer}>
@@ -87,26 +79,37 @@ export function Cart({
                         Cart is empty
                     </div>
                 ) : (
-                    items.map(item => (
-                        <div key={item.id} className="flex items-center justify-between">
-                            <div className="flex-1">
-                                <p className="font-medium text-sm">{item.name}</p>
-                                <p className="text-xs text-muted-foreground">৳{item.selling_price} x {item.quantity}</p>
+                    items.map(item => {
+                        const isReturn = item.quantity < 0;
+                        return (
+                            <div key={item.id} className={`flex items-center justify-between p-2 rounded-lg ${isReturn ? 'bg-red-50 border border-red-100' : ''}`}>
+                                <div className="flex-1">
+                                    <p className="font-medium text-sm">{item.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        ৳{item.selling_price} x {item.quantity}
+                                    </p>
+                                    {isReturn && <span className="text-xs text-red-600 font-bold">Return</span>}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onUpdateQuantity(item.id, -1)}>
+                                        <Minus className="h-3 w-3" />
+                                    </Button>
+                                    <span className={`text-sm w-6 text-center font-bold ${isReturn ? 'text-red-600' : ''}`}>
+                                        {item.quantity}
+                                    </span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onUpdateQuantity(item.id, 1)}>
+                                        <Plus className="h-3 w-3" />
+                                    </Button>
+
+                                    {/* Quick Toggle for Return? No space, just use +/- */}
+
+                                    <Button size="icon" variant="destructive" className="h-6 w-6 ml-1" onClick={() => onRemove(item.id)}>
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onUpdateQuantity(item.id, -1)}>
-                                    <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className="text-sm w-4 text-center">{item.quantity}</span>
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onUpdateQuantity(item.id, 1)}>
-                                    <Plus className="h-3 w-3" />
-                                </Button>
-                                <Button size="icon" variant="destructive" className="h-6 w-6 ml-1" onClick={() => onRemove(item.id)}>
-                                    <Trash2 className="h-3 w-3" />
-                                </Button>
-                            </div>
-                        </div>
-                    ))
+                        )
+                    })
                 )}
             </CardContent>
 
@@ -127,31 +130,30 @@ export function Cart({
                             onChange={(e) => setDiscount(e.target.value)}
                         />
                     </div>
-                    <div className="flex justify-between font-bold text-lg">
-                        <span>Total:</span>
-                        <span>৳{total}</span>
+                    <div className={`flex justify-between font-bold text-lg ${total < 0 ? 'text-red-600' : ''}`}>
+                        <span>{total >= 0 ? 'Net Payable:' : 'Refund Due:'}</span>
+                        <span>৳{Math.abs(total)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                        <span className="text-sm">Paid:</span>
+                        <span className="text-sm">{total >= 0 ? 'Paid:' : 'Refunded:'}</span>
                         <Input
                             type="number"
                             className="h-8 w-24 text-right"
                             value={paidAmount}
                             onChange={(e) => setPaidAmount(e.target.value)}
                             placeholder={total.toString()}
-
                         />
                     </div>
                 </div>
 
                 <Button
-                    className="w-full"
+                    className={`w-full ${total < 0 ? 'bg-red-600 hover:bg-red-700' : ''}`}
                     size="lg"
                     disabled={items.length === 0 || isProcessing}
                     onClick={handleCheckoutClick}
                 >
                     {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Checkout (৳{total})
+                    {total >= 0 ? 'Complete Sale' : 'Process Refund/Exchange'}
                 </Button>
             </CardFooter>
         </Card>

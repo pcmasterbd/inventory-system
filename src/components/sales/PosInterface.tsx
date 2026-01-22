@@ -5,7 +5,7 @@ import { createInvoice } from "@/app/actions/sales";
 import { ProductSearch } from "./ProductSearch";
 import { Cart } from "./Cart";
 import { Card } from "@/components/ui/card";
-import { toast } from "sonner"; // Assuming sonner is installed, otherwise use alert
+import { toast } from "sonner";
 
 interface Product {
     id: string;
@@ -38,6 +38,7 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
         setCart((prev) => {
             const existing = prev.find((item) => item.id === product.id);
             if (existing) {
+                // If adding same item, just increment. If it was negative (return), it approaches 0.
                 return prev.map((item) =>
                     item.id === product.id
                         ? { ...item, quantity: item.quantity + 1 }
@@ -57,7 +58,10 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
             prev.map((item) => {
                 if (item.id === productId) {
                     const newQty = item.quantity + delta;
-                    return newQty > 0 ? { ...item, quantity: newQty } : item;
+                    // Allow negative for Return/Exchange. 
+                    // If 0, we can remove or keep. Let's keep smooth transition: 1 -> 0 -> -1.
+                    // User can remove using Trash icon if they want to clear.
+                    return { ...item, quantity: newQty };
                 }
                 return item;
             })
@@ -66,8 +70,6 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
 
     const clearCart = () => setCart([]);
 
-    const [mode, setMode] = useState<'sale' | 'return'>('sale');
-
     const handleCheckout = async (paidAmount: number, discount: number) => {
         if (cart.length === 0) return;
         setIsCheckingOut(true);
@@ -75,18 +77,17 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
         try {
             await createInvoice({
                 customer_id: (selectedCustomer && selectedCustomer !== 'walk-in') ? selectedCustomer : undefined,
-                items: cart.map(item => ({
+                items: cart.filter(i => i.quantity !== 0).map(item => ({
                     product_id: item.id,
                     quantity: item.quantity,
                     unit_price: item.selling_price
                 })),
                 paid_amount: paidAmount,
-                discount: discount,
-                type: mode
+                discount: discount
             });
 
             clearCart();
-            toast.success(mode === 'return' ? "Return Processed!" : "Sale Completed!");
+            toast.success("Transaction Completed!");
         } catch (error) {
             console.error("Checkout failed", error);
             toast.error("Checkout failed. Check console.");
@@ -116,8 +117,6 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
                     onUpdateQuantity={updateQuantity}
                     onCheckout={handleCheckout}
                     isProcessing={isCheckingOut}
-                    mode={mode}
-                    onModeChange={setMode}
                 />
             </div>
         </div>

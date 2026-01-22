@@ -53,31 +53,62 @@ export default async function DashboardPage() {
   const todayStr = format(today, "yyyy-MM-dd")
   const thirtyDaysAgoStr = format(subDays(today, 30), "yyyy-MM-dd")
 
-  let allDailySales: any[] = []
+  let chartSalesData: Record<string, { revenue: number, cogs: number }> = {}
+  let chartAdData: Record<string, { adSpendDollar: number }> = {}
   let settings = { dollar_rate: 120, office_rent: 0, monthly_salaries: 0 }
   let totalInvestment = 0
 
   try {
-    // 1. Fetch Daily Sales (Last 30 Days)
-    const { data: allDailySalesData, error: salesError } = await supabase
+    // 1. Fetch Invoices (Last 30 Days) for Chart
+    const { data: recentInvoices } = await supabase
+      .from('invoices')
+      .select(`
+            id, 
+            total_amount, 
+            created_at,
+            invoice_items (
+                quantity,
+                products (cost_price)
+            )
+        `)
+      .gte('created_at', thirtyDaysAgoStr)
+      .order('created_at', { ascending: true });
+
+    // Process Invoices into Daily Stats
+    (recentInvoices || []).forEach((inv: any) => {
+      const date = format(new Date(inv.created_at), "yyyy-MM-dd");
+      if (!chartSalesData[date]) chartSalesData[date] = { revenue: 0, cogs: 0 };
+
+      chartSalesData[date].revenue += inv.total_amount;
+
+      // Calculate COGS
+      inv.invoice_items.forEach((item: any) => {
+        const qty = item.quantity;
+        const cost = item.products?.cost_price || 0;
+        chartSalesData[date].cogs += (qty * cost);
+      });
+    });
+
+    // 2. Fetch Ad Costs from Daily Sales (Last 30 Days)
+    // We only care about ad_cost_dollar here, as sales are now auto-calculated
+    const { data: adCosts } = await supabase
       .from('daily_sales')
-      .select('*, products(cost_price, selling_price)')
+      .select('date, ad_cost_dollar')
       .gte('date', thirtyDaysAgoStr)
-      .lte('date', todayStr)
-      .order('date', { ascending: true })
+      .lte('date', todayStr);
 
-    if (salesError) {
-      console.error("Error fetching daily sales:", salesError)
-    } else {
-      allDailySales = allDailySalesData || []
-    }
+    (adCosts || []).forEach((entry: any) => {
+      const date = entry.date;
+      if (!chartAdData[date]) chartAdData[date] = { adSpendDollar: 0 };
+      chartAdData[date].adSpendDollar += Number(entry.ad_cost_dollar || 0);
+    });
 
-    // 2. Fetch Settings
+    // 3. Fetch Settings
     const { data: settingsData, error: settingsError } = await supabase.from('settings').select('*').single()
     if (settingsError && settingsError.code !== 'PGRST116') console.error("Error fetching settings:", settingsError)
     if (settingsData) settings = settingsData
 
-    // 3. Fetch Investments
+    // 4. Fetch Investments
     const { data: investmentsData, error: investmentsError } = await supabase.from('investments').select('capital_amount')
     if (investmentsError) {
       console.error("Error fetching investments:", investmentsError)
@@ -110,36 +141,30 @@ export default async function DashboardPage() {
   // Initialize last 30 days with 0
   for (let i = 29; i >= 0; i--) {
     const d = format(subDays(today, i), "yyyy-MM-dd")
-    chartDataMap.set(d, { date: format(subDays(today, i), "dd MMM"), revenue: 0, adSpend: 0, profit: 0 })
+    const dLabel = format(subDays(today, i), "dd MMM")
+
+    const sales = chartSalesData[d] || { revenue: 0, cogs: 0 };
+    const ad = chartAdData[d] || { adSpendDollar: 0 };
+
+    const adSpendTk = ad.adSpendDollar * settings.dollar_rate;
+    const dailyProfit = sales.revenue - sales.cogs - adSpendTk; // Gross daily profit
+
+    chartDataMap.set(d, {
+      date: dLabel,
+      revenue: sales.revenue,
+      adSpend: adSpendTk,
+      profit: dailyProfit
+    })
+
+    if (d === todayStr) {
+      todaySales = sales.revenue;
+      todayCOGS = sales.cogs;
+      todayAdSpendDollar = ad.adSpendDollar;
+    }
   }
 
-  allDailySales.forEach((sale: any) => {
-    const saleDate = sale.date
-    const netQty = (sale.quantity_sold || 0) - (sale.quantity_returned || 0)
-
-    let revenue = 0
-    let cogs = 0
-    if (sale.products) {
-      revenue = netQty * (sale.products.selling_price || 0)
-      cogs = netQty * (sale.products.cost_price || 0)
-    }
-    const adSpendTk = Number(sale.ad_cost_dollar || 0) * Number(settings.dollar_rate)
-
-    // Today's Stats
-    if (saleDate === todayStr) {
-      todaySales += revenue
-      todayCOGS += cogs
-      todayAdSpendDollar += Number(sale.ad_cost_dollar || 0)
-    }
-
-    // Chart Data
-    if (chartDataMap.has(saleDate)) {
-      const entry = chartDataMap.get(saleDate)!
-      entry.revenue += revenue
-      entry.adSpend += adSpendTk
-      entry.profit += (revenue - cogs - adSpendTk) // Gross profit before fixed costs
-    }
-  })
+  // No specific processing loop needed here as we did it in loop above
+  // Removing old daily_sales loop
 
   // Convert Map to Array for Chart
   const chartData = Array.from(chartDataMap.values())

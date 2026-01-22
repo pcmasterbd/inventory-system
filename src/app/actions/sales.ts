@@ -14,7 +14,7 @@ export async function createInvoice(data: {
     items: InvoiceItemInput[];
     paid_amount: number;
     discount: number;
-    type?: 'sale' | 'return'; // Default is sale
+    type?: 'sale' | 'return'; // Kept for optional tagging, but logic derives from items
 }) {
     const supabase = await createClient();
     const {
@@ -23,19 +23,27 @@ export async function createInvoice(data: {
 
     if (!user) throw new Error("Unauthorized");
 
-    const isReturn = data.type === 'return';
-
-    // Calculate totals
+    // Calculate totals directly from signed quantities
+    // If quantity is negative (Return), the amount effectively subtracts from total.
     const total_amount = data.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-    const status = total_amount <= (data.paid_amount + data.discount) ? 'paid' : 'partial';
+
+    // Determine status. If total is negative (Refund), check if paid_amount equals total (Refunded).
+    // Note: paid_amount should follow the sign of total usually, but UI might send positive 'Paid' for negative total?
+    // Let's assume paid_amount matches the sign of valid transaction.
+    // Logic: If (total - paid - discount) ~= 0 then paid.
+    // BEWARE: Discount on negative total? 
+    // Usually Discount reduces the absolute magnitude.
+    // Let's rely on Net Due calculation.
+    const net_due = total_amount - data.discount - data.paid_amount;
+    const status = Math.abs(net_due) < 1 ? 'paid' : 'partial';
 
     // 1. Create Invoice Header
     const { data: invoice, error: invoiceError } = await supabase.from("invoices").insert({
-        invoice_number: `${isReturn ? 'RET' : 'INV'}-${Date.now()}`,
+        invoice_number: `INV-${Date.now()}`,
         customer_id: data.customer_id,
-        total_amount: isReturn ? -total_amount : total_amount, // Negative for returns if we track revenue that way
+        total_amount: total_amount,
         discount: data.discount,
-        paid_amount: isReturn ? -data.paid_amount : data.paid_amount,
+        paid_amount: data.paid_amount,
         status,
         user_id: user.id
     }).select().single();
@@ -65,9 +73,10 @@ export async function createInvoice(data: {
     for (const item of data.items) {
         const { data: product } = await supabase.from('products').select('stock_quantity').eq('id', item.product_id).single();
         if (product) {
-            const newStock = isReturn
-                ? product.stock_quantity + item.quantity
-                : product.stock_quantity - item.quantity;
+            // General formula: NewStock = CurrentStock - SoldQuantity
+            // If SoldQuantity is positive (Sale), Stock Decreases.
+            // If SoldQuantity is negative (Return), Stock Increases ( - (-5) = +5 ).
+            const newStock = product.stock_quantity - item.quantity;
 
             await supabase.from('products').update({
                 stock_quantity: newStock
@@ -281,4 +290,139 @@ export async function getSalesSummary() {
     });
 
     return Array.from(summaryMap.values());
+}
+
+// Updated createBulkSales to handle full ledger payload
+export async function createBulkSales(data: {
+    items: { product_id: string, quantity_sold: number, quantity_returned: number }[];
+    expenses?: Record<string, number>;
+    funds?: { property_fund: number; others_fund: number; per_spend: number };
+    dollarInfo?: { dollar_cost: number; conversion_rate: number };
+    totals?: { revenue: number; cogs: number; gross_profit: number; net_profit: number };
+}) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Handle Sales Invoices
+    const items = data.items;
+    if (items && items.length > 0) {
+        // Fetch Products to get prices
+        const productIds = items.map(i => i.product_id);
+        const { data: products } = await supabase
+            .from('products')
+            .select('id, selling_price')
+            .in('id', productIds);
+
+        const productMap = new Map();
+        products?.forEach(p => productMap.set(p.id, p));
+
+        // Prepare Sales Items
+        const salesItems = items
+            .filter(i => i.quantity_sold > 0)
+            .map(i => {
+                const product = productMap.get(i.product_id);
+                return {
+                    product_id: i.product_id,
+                    quantity: i.quantity_sold,
+                    unit_price: product?.selling_price || 0
+                };
+            });
+
+        // Prepare Return Items
+        const returnItems = items
+            .filter(i => i.quantity_returned > 0)
+            .map(i => {
+                const product = productMap.get(i.product_id);
+                return {
+                    product_id: i.product_id,
+                    quantity: -i.quantity_returned,
+                    unit_price: product?.selling_price || 0
+                };
+            });
+
+        if (salesItems.length > 0) {
+            await createInvoice({
+                items: salesItems,
+                paid_amount: salesItems.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0),
+                discount: 0
+            });
+        }
+
+        if (returnItems.length > 0) {
+            await createInvoice({
+                items: returnItems,
+                paid_amount: returnItems.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0),
+                discount: 0
+            });
+        }
+    }
+
+    // 2. Handle Expenses
+    if (data.expenses) {
+        const expenseEntries = Object.entries(data.expenses)
+            .filter(([_, amount]) => amount > 0)
+            .map(([type, amount]) => ({
+                date: today,
+                description: `Daily Ledger: ${type}`,
+                amount: amount,
+                expense_type: type, // e.g. 'office_rent', 'salary' matching DB assumption or free text
+                user_id: user.id
+            }));
+
+        if (expenseEntries.length > 0) {
+            await supabase.from("roi_expenses").insert(expenseEntries);
+        }
+    }
+
+    // 3. Handle Funds
+    if (data.funds) {
+        // Update Property Fund
+        if (data.funds.property_fund > 0) {
+            // Check if exists, update or insert?? Schema has 'funds' table with 'name' and 'balance'
+            // We want to ADD to balance.
+
+            // Fetch current
+            const { data: existingProp } = await supabase.from('funds').select('balance').eq('name', 'property_fund').single();
+            const currentProp = existingProp?.balance || 0;
+
+            await supabase.from('funds').upsert({
+                name: 'property_fund',
+                balance: Number(currentProp) + Number(data.funds.property_fund),
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'name' });
+        }
+
+        // Update Others Fund
+        if (data.funds.others_fund > 0) {
+            const { data: existingOther } = await supabase.from('funds').select('balance').eq('name', 'others_fund').single();
+            const currentOther = existingOther?.balance || 0;
+
+            await supabase.from('funds').upsert({
+                name: 'others_fund',
+                balance: Number(currentOther) + Number(data.funds.others_fund),
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'name' });
+        }
+    }
+
+    // 4. Create Daily Ledger Summary
+    if (data.totals || data.dollarInfo) {
+        await supabase.from('daily_ledger').upsert({
+            date: today,
+            dollar_cost: data.dollarInfo?.dollar_cost || 0,
+            total_revenue: data.totals?.revenue || 0,
+            total_expense: Object.values(data.expenses || {}).reduce((a, b) => a + b, 0),
+            net_profit: data.totals?.net_profit || 0,
+            property_fund_added: data.funds?.property_fund || 0,
+            others_fund_added: data.funds?.others_fund || 0,
+            user_id: user.id
+        }, { onConflict: 'date' });
+    }
+
+    revalidatePath("/dashboard/sales");
+    revalidatePath("/dashboard/reports");
+    revalidatePath("/dashboard");
 }

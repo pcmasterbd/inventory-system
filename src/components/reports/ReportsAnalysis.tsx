@@ -2,13 +2,15 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, LineChart, Line, AreaChart, Area, CartesianGrid } from "recharts";
-import { DollarSign, TrendingUp, TrendingDown, Percent } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Percent, Building, Coffee } from "lucide-react";
 
 interface ReportsAnalysisProps {
     monthlyData: {
         month: string;
         sales: number;
         expenses: number;
+        fixedExpenses: number;
+        dailyExpenses: number;
         profit: number;
         adCost: number;
     }[];
@@ -71,8 +73,8 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
             <div className="grid gap-6 md:grid-cols-2">
                 <Card className="col-span-1">
                     <CardHeader>
-                        <CardTitle>মাসিক লাভ-ক্ষতি (Monthly P&L)</CardTitle>
-                        <CardDescription>Sales vs Expenses vs Profit</CardDescription>
+                        <CardTitle>মাসিক আয়-ব্যয় (Income vs Expense)</CardTitle>
+                        <CardDescription>Sales vs Fixed Cost vs Daily Cost</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -83,8 +85,9 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
                                 <Tooltip formatter={(value) => `৳${Number(value).toLocaleString()}`} />
                                 <Legend />
                                 <Bar dataKey="sales" name="বিক্রয়" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="expenses" name="খরচ" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="profit" name="লাভ" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                                {/* Stacked Expenses */}
+                                <Bar dataKey="fixedExpenses" name="ফিক্সড খরচ" stackId="exp" fill="#f59e0b" />
+                                <Bar dataKey="dailyExpenses" name="ডেইলি খরচ" stackId="exp" fill="#ef4444" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
