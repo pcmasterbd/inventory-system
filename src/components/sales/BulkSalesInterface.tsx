@@ -39,20 +39,25 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
 
     const handleInputChange = (productId: string, field: keyof RowData, value: string) => {
         const numVal = parseInt(value) || 0;
-        setInputs(prev => ({
-            ...prev,
-            [productId]: {
-                ...prev[productId],
-                [field]: numVal >= 0 ? numVal : 0 // Prevent negative inputs here, use return column
-            }
-        }));
+        setInputs(prev => {
+            const current = prev[productId] || { unitsSold: 0, returnCount: 0 };
+            return {
+                ...prev,
+                [productId]: {
+                    ...current,
+                    [field]: numVal >= 0 ? numVal : 0
+                }
+            };
+        });
     };
 
     // Calculate derived data for display
     const tableData = useMemo(() => {
         return products.map(product => {
             const input = inputs[product.id] || { unitsSold: 0, returnCount: 0 };
-            const actualSold = input.unitsSold - input.returnCount;
+            const unitsSold = input.unitsSold || 0;
+            const returnCount = input.returnCount || 0;
+            const actualSold = unitsSold - returnCount;
             const totalRevenue = input.unitsSold * product.selling_price; // Revenue usually based on sold, returns subtract later? 
             // Wait, "Revenue" in image likely means "Final Revenue"? 
             // Image: Units Sold 2, Return 0 -> Act 2. 
@@ -66,15 +71,17 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
             // So Total Revenue = Units Sold * Price. (Gross Sales).
             // Returns will separate.
 
-            const grossRevenue = input.unitsSold * (product.selling_price || 0);
-            const totalCOGS = input.unitsSold * (product.cost_price || 0); // COGS on Gross Sales
+            // Corrected Logic per user request:
+            // Revenue should be based on Actual Sold (Net Sales)
+            const grossRevenue = actualSold * (product.selling_price || 0);
+            // COGS should be based on Actual Sold
+            const netCOGS = actualSold * (product.cost_price || 0);
             // Wait, if I return, COGS is credited back.
             // Image shows "Total COGS". If I sell 10 and return 2, my COGS is for 8.
             // Let's calculate Net COGS and Net Revenue for Profit.
 
-            const netRevenue = actualSold * (product.selling_price || 0);
-            const netCOGS = actualSold * (product.cost_price || 0);
-            const grossProfit = netRevenue - netCOGS;
+            // Gross Profit = Revenue - COGS
+            const grossProfit = grossRevenue - netCOGS;
 
             return {
                 ...product,
@@ -109,6 +116,58 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
         });
     }, [tableData]);
 
+    // Expenses State
+    const [expenses, setExpenses] = useState({
+        office_rent: 0,
+        marketing_bill: 0,
+        content_bill: 0,
+        consultancy: 0,
+        skill_dev: 0,
+        salary: 0,
+        license: 0,
+        utility: 0,
+        food: 0,
+        transport: 0,
+        other: 0
+    });
+
+    // Funds State
+    const [funds, setFunds] = useState({
+        property_fund: 0,
+        others_fund: 0,
+        per_spend: 0
+    });
+
+    // Dollar ROI State
+    const [dollarInfo, setDollarInfo] = useState({
+        dollar_cost: 0,
+        conversion_rate: 120
+    });
+
+    const handleExpenseChange = (field: string, val: string) => {
+        setExpenses(prev => ({ ...prev, [field]: parseFloat(val) || 0 }));
+    };
+
+    const handleFundChange = (field: string, val: string) => {
+        setFunds(prev => ({ ...prev, [field]: parseFloat(val) || 0 }));
+    };
+
+    const handleDollarChange = (field: string, val: string) => {
+        setDollarInfo(prev => ({ ...prev, [field]: parseFloat(val) || 0 }));
+    };
+
+    // Derived Ledger Values
+    const totalExpense = Object.values(expenses).reduce((a, b) => a + b, 0);
+
+    // User Request: ROI calculation based on Gross Profit - Total Expense (Net Profit)
+    const netProfit = totals.grossProfit - totalExpense;
+
+    // Dollar Analysis
+    const dollarCostBD = dollarInfo.dollar_cost * dollarInfo.conversion_rate;
+
+    // ROI = (Net Profit / Dollar Cost in BDT) * 100
+    const dollarROI = dollarCostBD > 0 ? (netProfit / dollarCostBD) * 100 : 0;
+
     const onSave = async () => {
         // Filter out rows with no activity
         const items = tableData.filter(d => d.unitsSold > 0 || d.returnCount > 0);
@@ -120,14 +179,31 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
 
         setIsSaving(true);
         try {
-            await createBulkSales(items.map(item => ({
-                product_id: item.id,
-                quantity_sold: item.unitsSold,
-                quantity_returned: item.returnCount
-            })));
+            await createBulkSales({
+                items: items.map(item => ({
+                    product_id: item.id,
+                    quantity_sold: item.unitsSold,
+                    quantity_returned: item.returnCount
+                })),
+                expenses,
+                funds,
+                dollarInfo,
+                totals: {
+                    revenue: totals.grossRevenue,
+                    cogs: totals.netCOGS,
+                    gross_profit: totals.grossProfit,
+                    net_profit: netProfit
+                }
+            });
 
             toast.success("Daily sales saved successfully!");
-            setInputs({}); // Reset
+            setInputs({});
+            setExpenses({
+                office_rent: 0, marketing_bill: 0, content_bill: 0, consultancy: 0, skill_dev: 0,
+                salary: 0, license: 0, utility: 0, food: 0, transport: 0, other: 0
+            });
+            setFunds({ property_fund: 0, others_fund: 0, per_spend: 0 });
+            setDollarInfo({ dollar_cost: 0, conversion_rate: 120 });
         } catch (error) {
             console.error(error);
             toast.error("Failed to save.");
@@ -344,6 +420,131 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
                     </Table>
                 </div>
             </CardContent>
+
+            {/* Expenses Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Daily Expenses</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 gap-4">
+                            {Object.keys(expenses).map((key) => (
+                                <div key={key} className="space-y-1">
+                                    <label className="text-sm font-medium capitalize">{key.replace('_', ' ')}</label>
+                                    <Input
+                                        type="number"
+                                        value={expenses[key as keyof typeof expenses] || ''}
+                                        onChange={(e) => handleExpenseChange(key, e.target.value)}
+                                        placeholder="0"
+                                    />
+                                </div>
+                            ))}
+                            <div className="col-span-2 pt-2 border-t mt-2 flex justify-between font-bold">
+                                <span>Total Expense:</span>
+                                <span>৳{totalExpense.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Funds & Dollar ROI */}
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Funds & Saving</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium">Property Fund</label>
+                                    <Input
+                                        type="number"
+                                        value={funds.property_fund || ''}
+                                        onChange={(e) => handleFundChange('property_fund', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium">Others Fund</label>
+                                    <Input
+                                        type="number"
+                                        value={funds.others_fund || ''}
+                                        onChange={(e) => handleFundChange('others_fund', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium">Personal Spend</label>
+                                    <Input
+                                        type="number"
+                                        value={funds.per_spend || ''}
+                                        onChange={(e) => handleFundChange('per_spend', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Dollar Analysis</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium">Dollar Cost ($)</label>
+                                    <Input
+                                        type="number"
+                                        value={dollarInfo.dollar_cost || ''}
+                                        onChange={(e) => handleDollarChange('dollar_cost', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium">Rate (BDT)</label>
+                                    <Input
+                                        type="number"
+                                        value={dollarInfo.conversion_rate}
+                                        onChange={(e) => handleDollarChange('conversion_rate', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="p-4 bg-purple-50 rounded-lg space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span>Dollar Cost (BDT):</span>
+                                    <span>৳{dollarCostBD.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between font-bold text-lg text-purple-900 border-t pt-2 border-purple-200">
+                                    <span>Dollar ROI:</span>
+                                    <span>{dollarROI.toFixed(2)}%</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Day Summary */}
+            <Card className="mt-6 bg-slate-900 text-white">
+                <CardContent className="p-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                        <div>
+                            <p className="text-slate-400 text-sm uppercase tracking-wider">Gross Profit</p>
+                            <p className="text-3xl font-bold text-green-400">৳{totals.grossProfit.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-400 text-sm uppercase tracking-wider">Total Expense</p>
+                            <p className="text-3xl font-bold text-red-400">৳{totalExpense.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-400 text-sm uppercase tracking-wider">Net Profit</p>
+                            <p className="text-3xl font-bold text-white">৳{netProfit.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-400 text-sm uppercase tracking-wider">ROI</p>
+                            <p className="text-3xl font-bold text-yellow-400">{dollarROI.toFixed(1)}%</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </Card>
     );
 }
