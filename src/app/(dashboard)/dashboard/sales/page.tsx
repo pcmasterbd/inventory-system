@@ -14,12 +14,12 @@ export default async function SalesPage() {
     const summaryData = await getSalesSummary();
 
     return (
-        <div className="flex-1 p-4 md:p-6 h-[calc(100vh-4rem)] overflow-hidden flex flex-col">
+        <div className="flex-1 p-4 md:p-6 flex flex-col">
             <div className="flex items-center justify-between mb-4 shrink-0">
                 <h2 className="text-2xl font-bold tracking-tight">বিক্রয় ব্যবস্থাপনা (Sales Management)</h2>
             </div>
 
-            <Tabs defaultValue="bulk" className="flex-1 flex flex-col overflow-hidden">
+            <Tabs defaultValue="bulk" className="flex-1 flex flex-col">
                 <div className="shrink-0 mb-4">
                     <TabsList>
                         <TabsTrigger value="bulk">ডেইলি শিট (Daily Sheet)</TabsTrigger>
@@ -29,7 +29,7 @@ export default async function SalesPage() {
                     </TabsList>
                 </div>
 
-                <TabsContent value="bulk" className="flex-1 overflow-auto mt-0 border rounded-lg p-4 bg-card h-full data-[state=inactive]:hidden">
+                <TabsContent value="bulk" className="flex-1 mt-0 border rounded-lg p-4 bg-card data-[state=inactive]:hidden">
                     <BulkSalesInterface products={products || []} />
                 </TabsContent>
 

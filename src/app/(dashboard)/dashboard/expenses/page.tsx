@@ -1,6 +1,6 @@
 import { getExpenses } from "@/app/actions/expenses";
 import { Button } from "@/components/ui/button";
-import { Plus, Receipt, Calendar, FileText, Trash2, Building, Coffee } from "lucide-react";
+import { Plus, Receipt, Calendar, FileText, Trash2, Building, Coffee, UserCircle, Briefcase } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -16,15 +16,25 @@ export default async function ExpensesPage() {
 
     // Categorization Logic
     const FIXED_CATS = ["office_rent", "salary", "utility", "license_purchase", "fixed"];
+    const PERSONAL_CATS = ["personal_withdrawal", "family_expense", "medical", "other_personal", "personal"];
+    const ASSETS_CATS = ["equipment", "furniture", "electronics", "other_asset", "assets"];
 
     // Filter Lists
     const fixedExpenses = expenses?.filter(e => FIXED_CATS.includes(e.expense_type)) || [];
-    const dailyExpenses = expenses?.filter(e => !FIXED_CATS.includes(e.expense_type)) || [];
+    const personalExpenses = expenses?.filter(e => PERSONAL_CATS.includes(e.expense_type)) || [];
+    const assetsExpenses = expenses?.filter(e => ASSETS_CATS.includes(e.expense_type)) || [];
+
+    // Daily expenses are everything else
+    const allDefinedCats = [...FIXED_CATS, ...PERSONAL_CATS, ...ASSETS_CATS];
+    const dailyExpenses = expenses?.filter(e => !allDefinedCats.includes(e.expense_type)) || [];
 
     // Calculate Stats
     const totalFixed = fixedExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
     const totalDaily = dailyExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
-    const grandTotal = totalFixed + totalDaily;
+    const totalPersonal = personalExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalAssets = assetsExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+
+    const grandTotal = totalFixed + totalDaily + totalPersonal + totalAssets;
 
     function ExpenseTable({ data, type }: { data: typeof expenses, type: string }) {
         return (
@@ -88,45 +98,63 @@ export default async function ExpensesPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">খরচ ব্যবস্থাপনা (Expense Manager)</h1>
                     <p className="text-muted-foreground mt-1">
-                        ডেইলি এবং ফিক্সড খরচ আলাদাভাবে দেখুন।
+                        সকল খরচের হিসাব রাখুন: ডেইলি, ফিক্সড, পার্সোনাল এবং সম্পদ।
                     </p>
                 </div>
                 <ExpenseEntryDialog />
             </div>
 
             {/* Expense Stats */}
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-5">
                 <StatsCard
                     title="সর্বমোট খরচ (Total)"
                     value={`৳${grandTotal.toLocaleString()}`}
                     icon={Receipt}
                     trend="neutral"
-                    trendValue="Total Expense"
+                    trendValue="Total"
                     color="primary"
                 />
                 <StatsCard
-                    title="ফিক্সড খরচ (Monthly)"
-                    value={`৳${totalFixed.toLocaleString()}`}
-                    icon={Building}
-                    trend="neutral"
-                    trendValue="Rent, Salary, etc."
-                    color="warning"
-                />
-                <StatsCard
-                    title="ডেইলি খরচ (Daily)"
+                    title="ডেইলি (Daily)"
                     value={`৳${totalDaily.toLocaleString()}`}
                     icon={Coffee}
                     trend="neutral"
-                    trendValue="Tea, Transport, etc."
+                    trendValue="Operational"
                     color="danger"
+                />
+                <StatsCard
+                    title="ফিক্সড (Fixed)"
+                    value={`৳${totalFixed.toLocaleString()}`}
+                    icon={Building}
+                    trend="neutral"
+                    trendValue="Monthly"
+                    color="warning"
+                />
+                <StatsCard
+                    title="পার্সোনাল (Personal)"
+                    value={`৳${totalPersonal.toLocaleString()}`}
+                    icon={UserCircle}
+                    trend="neutral"
+                    trendValue="Private"
+                    color="primary"
+                />
+                <StatsCard
+                    title="সম্পদ (Assets)"
+                    value={`৳${totalAssets.toLocaleString()}`}
+                    icon={Briefcase}
+                    trend="neutral"
+                    trendValue="Long-term"
+                    color="success"
                 />
             </div>
 
-            {/* Tabs for Daily vs Fixed */}
+            {/* Tabs for Daily vs Fixed vs Personal vs Assets */}
             <Tabs defaultValue="daily" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="daily">ডেইলি খরচ (Daily Expenses)</TabsTrigger>
-                    <TabsTrigger value="fixed">ফিক্সড খরচ (Fixed Expenses)</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4 mb-4 h-auto">
+                    <TabsTrigger value="daily" className="py-2">ডেইলি খরচ (Daily)</TabsTrigger>
+                    <TabsTrigger value="fixed" className="py-2">ফিক্সড খরচ (Fixed)</TabsTrigger>
+                    <TabsTrigger value="personal" className="py-2">পার্সোনাল খরচ (Personal)</TabsTrigger>
+                    <TabsTrigger value="assets" className="py-2">সম্পদ খরচ (Assets)</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="daily">
@@ -135,6 +163,14 @@ export default async function ExpensesPage() {
 
                 <TabsContent value="fixed">
                     <ExpenseTable data={fixedExpenses} type="ফিক্সড খরচের" />
+                </TabsContent>
+
+                <TabsContent value="personal">
+                    <ExpenseTable data={personalExpenses} type="পার্সোনাল খরচের" />
+                </TabsContent>
+
+                <TabsContent value="assets">
+                    <ExpenseTable data={assetsExpenses} type="সম্পদ খরচের" />
                 </TabsContent>
             </Tabs>
         </div>

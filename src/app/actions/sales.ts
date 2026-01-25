@@ -7,6 +7,7 @@ interface InvoiceItemInput {
     product_id: string;
     quantity: number;
     unit_price: number;
+    cost_price?: number; // Added to track historical COGS
 }
 
 export async function createInvoice(data: {
@@ -14,7 +15,7 @@ export async function createInvoice(data: {
     items: InvoiceItemInput[];
     paid_amount: number;
     discount: number;
-    type?: 'sale' | 'return'; // Kept for optional tagging, but logic derives from items
+    type?: 'sale' | 'return';
 }) {
     const supabase = await createClient();
     const {
@@ -24,16 +25,7 @@ export async function createInvoice(data: {
     if (!user) throw new Error("Unauthorized");
 
     // Calculate totals directly from signed quantities
-    // If quantity is negative (Return), the amount effectively subtracts from total.
     const total_amount = data.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-
-    // Determine status. If total is negative (Refund), check if paid_amount equals total (Refunded).
-    // Note: paid_amount should follow the sign of total usually, but UI might send positive 'Paid' for negative total?
-    // Let's assume paid_amount matches the sign of valid transaction.
-    // Logic: If (total - paid - discount) ~= 0 then paid.
-    // BEWARE: Discount on negative total? 
-    // Usually Discount reduces the absolute magnitude.
-    // Let's rely on Net Due calculation.
     const net_due = total_amount - data.discount - data.paid_amount;
     const status = Math.abs(net_due) < 1 ? 'paid' : 'partial';
 
@@ -59,6 +51,7 @@ export async function createInvoice(data: {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
+        cost_price: item.cost_price || 0, // Save cost price
         user_id: user.id
     }));
 
@@ -73,11 +66,7 @@ export async function createInvoice(data: {
     for (const item of data.items) {
         const { data: product } = await supabase.from('products').select('stock_quantity').eq('id', item.product_id).single();
         if (product) {
-            // General formula: NewStock = CurrentStock - SoldQuantity
-            // If SoldQuantity is positive (Sale), Stock Decreases.
-            // If SoldQuantity is negative (Return), Stock Increases ( - (-5) = +5 ).
             const newStock = product.stock_quantity - item.quantity;
-
             await supabase.from('products').update({
                 stock_quantity: newStock
             }).eq('id', item.product_id);
@@ -85,7 +74,7 @@ export async function createInvoice(data: {
     }
 
     revalidatePath("/dashboard/sales");
-    revalidatePath("/dashboard/inventory"); // Update inventory counts too
+    revalidatePath("/dashboard/inventory");
 }
 
 export async function getInvoices() {
@@ -171,14 +160,13 @@ export async function deleteInvoice(id: string) {
     if (itemsError) return { error: itemsError.message };
 
     // 2. Revert stock changes
-    // We need to check if the invoice itself was a Sale or Return to know how to revert
     const { data: invoice } = await supabase
         .from('invoices')
         .select('total_amount')
         .eq('id', id)
         .single();
 
-    const isReturn = invoice && invoice.total_amount < 0; // Heuristic: negative total means return
+    const isReturn = invoice && invoice.total_amount < 0;
 
     for (const item of items) {
         const { data: product } = await supabase
@@ -188,8 +176,6 @@ export async function deleteInvoice(id: string) {
             .single();
 
         if (product) {
-            // If it was a SALE, we subtracted stock, so now we ADD it back.
-            // If it was a RETURN, we added stock, so now we SUBTRACT it.
             const reversalQuantity = isReturn
                 ? product.stock_quantity - item.quantity
                 : product.stock_quantity + item.quantity;
@@ -201,9 +187,7 @@ export async function deleteInvoice(id: string) {
         }
     }
 
-    // 3. Delete Invoice (Cascading delete should handle items if configured, but let's be safe)
-    // Deleting the invoice usually deletes items if ON DELETE CASCADE is set.
-    // If not, we'd delete items first. Assuming simplified flow + cascade or manual clean up:
+    // 3. Delete Invoice
     const { error: deleteError } = await supabase
         .from('invoices')
         .delete()
@@ -294,10 +278,16 @@ export async function getSalesSummary() {
 
 // Updated createBulkSales to handle full ledger payload
 export async function createBulkSales(data: {
-    items: { product_id: string, quantity_sold: number, quantity_returned: number }[];
+    items: {
+        product_id: string;
+        quantity_sold: number;
+        quantity_returned: number;
+        cost_price: number;
+        ad_cost_dollar?: number;
+    }[];
     expenses?: Record<string, number>;
     funds?: { property_fund: number; others_fund: number; per_spend: number };
-    dollarInfo?: { dollar_cost: number; conversion_rate: number };
+    dollarInfo?: { conversion_rate: number }; // Only need rate, entries have dollar
     totals?: { revenue: number; cogs: number; gross_profit: number; net_profit: number };
 }) {
     const supabase = await createClient();
@@ -308,8 +298,13 @@ export async function createBulkSales(data: {
 
     // 1. Handle Sales Invoices
     const items = data.items;
+
+    // Determine conversion rate
+    const conversionRate = data.dollarInfo?.conversion_rate || 120;
+
+    // A. Create Sales/Returns
     if (items && items.length > 0) {
-        // Fetch Products to get prices
+        // Fetch Selling Prices (Fallback)
         const productIds = items.map(i => i.product_id);
         const { data: products } = await supabase
             .from('products')
@@ -327,7 +322,8 @@ export async function createBulkSales(data: {
                 return {
                     product_id: i.product_id,
                     quantity: i.quantity_sold,
-                    unit_price: product?.selling_price || 0
+                    unit_price: product?.selling_price || 0,
+                    cost_price: i.cost_price // Use per-row COGS
                 };
             });
 
@@ -339,7 +335,8 @@ export async function createBulkSales(data: {
                 return {
                     product_id: i.product_id,
                     quantity: -i.quantity_returned,
-                    unit_price: product?.selling_price || 0
+                    unit_price: product?.selling_price || 0,
+                    cost_price: i.cost_price // Returns also track cost (reversed in logic)
                 };
             });
 
@@ -358,6 +355,25 @@ export async function createBulkSales(data: {
                 discount: 0
             });
         }
+
+        // B. Handle Ad Spends
+        const adSpendItems = items.filter(i => (i.ad_cost_dollar || 0) > 0);
+        if (adSpendItems.length > 0) {
+            const adSpendsToInsert = adSpendItems.map(i => ({
+                product_id: i.product_id,
+                date: new Date().toISOString(), // Use full timestamp
+                amount_dollar: i.ad_cost_dollar,
+                exchange_rate: conversionRate,
+                user_id: user.id
+                // amount_bdt is generated
+            }));
+
+            const { error: adError } = await supabase.from('product_ad_spends').insert(adSpendsToInsert);
+            if (adError) {
+                console.error("Error inserting ad spends:", adError);
+                // Non-blocking?
+            }
+        }
     }
 
     // 2. Handle Expenses
@@ -368,7 +384,7 @@ export async function createBulkSales(data: {
                 date: today,
                 description: `Daily Ledger: ${type}`,
                 amount: amount,
-                expense_type: type, // e.g. 'office_rent', 'salary' matching DB assumption or free text
+                expense_type: type,
                 user_id: user.id
             }));
 
@@ -381,10 +397,6 @@ export async function createBulkSales(data: {
     if (data.funds) {
         // Update Property Fund
         if (data.funds.property_fund > 0) {
-            // Check if exists, update or insert?? Schema has 'funds' table with 'name' and 'balance'
-            // We want to ADD to balance.
-
-            // Fetch current
             const { data: existingProp } = await supabase.from('funds').select('balance').eq('name', 'property_fund').single();
             const currentProp = existingProp?.balance || 0;
 
@@ -408,14 +420,18 @@ export async function createBulkSales(data: {
         }
     }
 
-    // 4. Create Daily Ledger Summary
-    if (data.totals || data.dollarInfo) {
+    // 4. Create Daily Ledger Summary (Legacy support + Ledger view)
+    if (data.totals) {
+        // Calculate total ad spend BDT
+        const totalAdSpendDollar = items.reduce((sum, i) => sum + (i.ad_cost_dollar || 0), 0);
+        const totalAdSpendBDT = totalAdSpendDollar * conversionRate;
+
         await supabase.from('daily_ledger').upsert({
             date: today,
-            dollar_cost: data.dollarInfo?.dollar_cost || 0,
-            total_revenue: data.totals?.revenue || 0,
+            dollar_cost: totalAdSpendDollar,
+            total_revenue: data.totals.revenue,
             total_expense: Object.values(data.expenses || {}).reduce((a, b) => a + b, 0),
-            net_profit: data.totals?.net_profit || 0,
+            net_profit: data.totals.net_profit,
             property_fund_added: data.funds?.property_fund || 0,
             others_fund_added: data.funds?.others_fund || 0,
             user_id: user.id
@@ -425,4 +441,5 @@ export async function createBulkSales(data: {
     revalidatePath("/dashboard/sales");
     revalidatePath("/dashboard/reports");
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/roi");
 }

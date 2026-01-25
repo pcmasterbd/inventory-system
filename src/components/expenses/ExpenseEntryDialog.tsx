@@ -46,12 +46,26 @@ const DAILY_CATEGORIES = [
     { value: "other", label: "অন্যান্য (Others)" },
 ];
 
+const PERSONAL_CATEGORIES = [
+    { value: "personal_withdrawal", label: "হাত খরচ (Personal Withdrawal)" },
+    { value: "family_expense", label: "পরিবার (Family)" },
+    { value: "medical", label: "চিকিৎসা (Medical)" },
+    { value: "other_personal", label: "অন্যান্য (Other Personal)" },
+];
+
+const ASSETS_CATEGORIES = [
+    { value: "equipment", label: "যন্ত্রপাতি (Equipment)" },
+    { value: "furniture", label: "আসবাবপত্র (Furniture)" },
+    { value: "electronics", label: "ইলেকট্রনিক্স (Electronics)" },
+    { value: "other_asset", label: "অন্যান্য (Other Asset)" },
+];
+
 export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     // Form States
-    const [costType, setCostType] = useState<"fixed" | "daily">("daily");
+    const [costType, setCostType] = useState<"fixed" | "daily" | "personal" | "assets">("daily");
     const [desc, setDesc] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("other");
@@ -65,7 +79,14 @@ export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
 
                 // Try to infer type from existing category
                 const isFixed = FIXED_CATEGORIES.some(c => c.value === expense.expense_type);
-                setCostType(isFixed ? "fixed" : "daily");
+                const isPersonal = PERSONAL_CATEGORIES.some(c => c.value === expense.expense_type);
+                const isAssets = ASSETS_CATEGORIES.some(c => c.value === expense.expense_type);
+
+                if (isFixed) setCostType("fixed");
+                else if (isPersonal) setCostType("personal");
+                else if (isAssets) setCostType("assets");
+                else setCostType("daily");
+
                 setCategory(expense.expense_type);
             } else {
                 setDesc("");
@@ -114,12 +135,19 @@ export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
     };
 
     const isEdit = !!expense;
-    const currentCategories = costType === "fixed" ? FIXED_CATEGORIES : DAILY_CATEGORIES;
+    let currentCategories = DAILY_CATEGORIES;
+    if (costType === "fixed") currentCategories = FIXED_CATEGORIES;
+    else if (costType === "personal") currentCategories = PERSONAL_CATEGORIES;
+    else if (costType === "assets") currentCategories = ASSETS_CATEGORIES;
 
     // Reset category when switching types if current selection is invalid for new type
-    const handleTypeChange = (val: "fixed" | "daily") => {
+    const handleTypeChange = (val: "fixed" | "daily" | "personal" | "assets") => {
         setCostType(val);
-        const cats = val === "fixed" ? FIXED_CATEGORIES : DAILY_CATEGORIES;
+        let cats = DAILY_CATEGORIES;
+        if (val === "fixed") cats = FIXED_CATEGORIES;
+        else if (val === "personal") cats = PERSONAL_CATEGORIES;
+        else if (val === "assets") cats = ASSETS_CATEGORIES;
+
         setCategory(cats[0].value);
     };
 
@@ -138,7 +166,7 @@ export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[550px]">
                 <DialogHeader>
                     <DialogTitle>{isEdit ? "খরচ আপডেট করুন" : "নতুন খরচ যুক্ত করুন"}</DialogTitle>
                     <DialogDescription>
@@ -151,9 +179,11 @@ export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
                     <div className="grid gap-2">
                         <Label>খরচের ধরণ (Expense Type)</Label>
                         <Tabs defaultValue="daily" value={costType} onValueChange={(v) => handleTypeChange(v as any)} className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="daily">ডেইলি খরচ (Daily)</TabsTrigger>
-                                <TabsTrigger value="fixed">ফিক্সড খরচ (Monthly)</TabsTrigger>
+                            <TabsList className="grid w-full grid-cols-4 h-auto">
+                                <TabsTrigger value="daily" className="text-xs py-2">ডেইলি (Daily)</TabsTrigger>
+                                <TabsTrigger value="fixed" className="text-xs py-2">ফিক্সড (Fixed)</TabsTrigger>
+                                <TabsTrigger value="personal" className="text-xs py-2">পার্সোনাল (Personal)</TabsTrigger>
+                                <TabsTrigger value="assets" className="text-xs py-2">সম্পদ (Assets)</TabsTrigger>
                             </TabsList>
                         </Tabs>
                     </div>

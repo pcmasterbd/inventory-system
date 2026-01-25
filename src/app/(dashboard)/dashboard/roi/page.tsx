@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DateFilter } from "@/components/reports/DateFilter";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import { AdSpendDialog } from "@/components/roi/AdSpendDialog";
 import {
     Table,
     TableBody,
@@ -47,8 +48,6 @@ export default async function RoiPage(props: PageProps) {
     }
 
     // 1. Fetch Sales (Invoice Items)
-    // We join with 'invoices' to filter by Date and Status
-    // We join with 'products' to get Cost Price (for Margin calc)
     const { data: invoiceItems, error: itemsError } = await supabase
         .from("invoice_items")
         .select(`
@@ -65,15 +64,13 @@ export default async function RoiPage(props: PageProps) {
             )
         `)
         .eq('user_id', user.id)
-        .neq('invoices.status', 'cancelled') // Exclude cancelled orders
+        .neq('invoices.status', 'cancelled')
         .gte("invoices.date", startPeriod)
         .lte("invoices.date", endPeriod);
 
-    if (itemsError) {
-        console.error("ROI: Invoice Items Fetch Error", itemsError);
-    }
+    if (itemsError) console.error("ROI: Invoice Items Error", itemsError);
 
-    // 2. Fetch Operational Expenses (Transactions where type = expense)
+    // 2. Fetch Operational Expenses
     const { data: expenses, error: expenseError } = await supabase
         .from("transactions")
         .select("*")
@@ -82,9 +79,24 @@ export default async function RoiPage(props: PageProps) {
         .gte("date", startPeriod)
         .lte("date", endPeriod);
 
-    if (expenseError) {
-        console.error("ROI: Expenses Fetch Error", expenseError);
+    if (expenseError) console.error("ROI: Expenses Error", expenseError);
+
+    // 3. Fetch Ad Spends
+    const { data: adSpends, error: adsError } = await supabase
+        .from("product_ad_spends")
+        .select("*")
+        .eq('user_id', user.id)
+        .gte("date", startPeriod)
+        .lte("date", endPeriod);
+
+    // Suppress error if table doesn't exist yet (Migration pending)
+    if (adsError && adsError.code !== '42P01') {
+        console.error("ROI: Ad Spends Error", adsError);
     }
+    const safeAdSpends = adSpends || [];
+
+    // 4. Fetch Products (For Dropdown in Dialog)
+    const { data: products } = await supabase.from("products").select("id, name").eq('user_id', user.id);
 
 
     // --- Calculate Metrics ---
@@ -92,6 +104,7 @@ export default async function RoiPage(props: PageProps) {
     let totalSalesUnits = 0;
     let totalRevenue = 0;
     let totalCOGS = 0;
+    let totalAdSpend = 0;
 
     // Aggregation by Product
     const productPerformance = new Map();
@@ -100,79 +113,127 @@ export default async function RoiPage(props: PageProps) {
     const chartDataMap = new Map();
 
 
+    // A. Process Sales (Revenue & COGS)
     invoiceItems?.forEach((item) => {
         // @ts-ignore
         const productData = item.products;
         const product = Array.isArray(productData) ? productData[0] : productData;
         // @ts-ignore
-        const invoiceDate = item.invoices?.date.split('T')[0]; // Extract YYYY-MM-DD
+        const invoiceDate = item.invoices?.date.split('T')[0];
 
         if (!product) return;
 
         const quantity = item.quantity || 0;
-        const revenue = quantity * (item.unit_price || 0); // Sold Price
-        const cogs = quantity * (product.cost_price || 0); // Cost Price
+        const revenue = quantity * (item.unit_price || 0);
+
+        // Use historical cost if available, otherwise fallback to current master cost
+        // @ts-ignore
+        const unitCost = item.cost_price !== undefined && item.cost_price !== null ? item.cost_price : product.cost_price;
+        const cogs = quantity * (unitCost || 0);
 
         totalSalesUnits += quantity;
         totalRevenue += revenue;
         totalCOGS += cogs;
 
-        // 1. Product Table Data
+        // Product Table Update
         if (!productPerformance.has(item.product_id)) {
             productPerformance.set(item.product_id, {
                 name: product.name,
                 units: 0,
                 revenue: 0,
                 cogs: 0,
-                grossProfit: 0
+                adCost: 0,
+                grossProfit: 0 // Rev - COGS
             });
         }
         const prodStats = productPerformance.get(item.product_id);
         prodStats.units += quantity;
         prodStats.revenue += revenue;
         prodStats.cogs += cogs;
-        prodStats.grossProfit += (revenue - cogs);
+        prodStats.grossProfit += (revenue - cogs); // Temporary Gross
 
-        // 2. Chart Data (Revenue & Gross Profit)
+        // Chart Update
         if (!chartDataMap.has(invoiceDate)) {
             chartDataMap.set(invoiceDate, { date: invoiceDate, revenue: 0, profit: 0, expense: 0 });
         }
         const chartEntry = chartDataMap.get(invoiceDate);
         chartEntry.revenue += revenue;
-        chartEntry.profit += (revenue - cogs); // Adding Gross Profit initially
+        chartEntry.profit += (revenue - cogs);
     });
 
-    // Process Expenses
-    let totalExpense = 0;
+    // B. Process Ad Spends
+    adSpends?.forEach((ad) => {
+        const amount = Number(ad.amount_bdt);
+        const date = ad.date.split('T')[0];
+
+        totalAdSpend += amount;
+
+        // Distribute to Product Stats
+        if (ad.product_id && productPerformance.has(ad.product_id)) {
+            const prodStats = productPerformance.get(ad.product_id);
+            prodStats.adCost += amount;
+        } else if (ad.product_id) {
+            // If product had no sales but has ads (rare but possible)
+            // We ideally should fetch name, but for now skipped or need manual lookup if map checks fail
+            // Checking if we have it in product list
+            const pName = products?.find(p => p.id === ad.product_id)?.name || "Unknown";
+            if (!productPerformance.has(ad.product_id)) {
+                productPerformance.set(ad.product_id, {
+                    name: pName,
+                    units: 0,
+                    revenue: 0,
+                    cogs: 0,
+                    adCost: 0,
+                    grossProfit: 0
+                });
+            }
+            productPerformance.get(ad.product_id).adCost += amount;
+        }
+
+        // Chart Update (Treat Ads as Expense reducing profit)
+        if (!chartDataMap.has(date)) {
+            chartDataMap.set(date, { date: date, revenue: 0, profit: 0, expense: 0 });
+        }
+        const chartEntry = chartDataMap.get(date);
+        chartEntry.profit -= amount; // Reduce daily profit by ad spend
+    });
+
+    // C. Process Operational Expenses
+    let totalOpExpense = 0;
     expenses?.forEach((exp) => {
         const amount = Number(exp.amount);
-        const expDate = exp.date.split('T')[0];
+        const date = exp.date.split('T')[0];
 
-        totalExpense += amount;
+        totalOpExpense += amount;
 
-        // Chart Data (Expense)
-        if (!chartDataMap.has(expDate)) {
-            chartDataMap.set(expDate, { date: expDate, revenue: 0, profit: 0, expense: 0 });
+        if (!chartDataMap.has(date)) {
+            chartDataMap.set(date, { date: date, revenue: 0, profit: 0, expense: 0 });
         }
-        const chartEntry = chartDataMap.get(expDate);
+        const chartEntry = chartDataMap.get(date);
+        chartEntry.profit -= amount; // Reduce daily profit
         chartEntry.expense += amount;
     });
 
-    const grossProfit = totalRevenue - totalCOGS;
-    const netProfit = grossProfit - totalExpense;
+    // Final Calculations
+    const totalMarketingAndCOGS = totalCOGS + totalAdSpend;
+    const grossProfitAfterAds = totalRevenue - totalMarketingAndCOGS;
+    const netProfit = grossProfitAfterAds - totalOpExpense;
 
     // Finalize Table Data
     const roiData = Array.from(productPerformance.values()).map(p => {
-        const roi = p.cogs > 0 ? (p.grossProfit / p.cogs) * 100 : 0;
-        return { ...p, roi };
+        const totalInvestment = p.cogs + p.adCost;
+        const netProfit = p.revenue - totalInvestment; // Product Net Profit (ignoring shared op expenses)
+        const roi = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
+
+        return {
+            ...p,
+            netProfit,
+            roi
+        };
     }).sort((a, b) => b.roi - a.roi);
 
-    // Finalize Chart Data (Net Profit = Gross Profit - Expense)
+    // Finalize Chart Data
     const chartData = Array.from(chartDataMap.values())
-        .map((item) => ({
-            ...item,
-            profit: item.profit - item.expense
-        }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
 
@@ -182,7 +243,8 @@ export default async function RoiPage(props: PageProps) {
         Units_Sold: item.units,
         Revenue: item.revenue.toFixed(2),
         COGS: item.cogs.toFixed(2),
-        Profit: item.grossProfit.toFixed(2),
+        Ads_Cost: item.adCost.toFixed(2),
+        Net_Profit: item.netProfit.toFixed(2),
         ROI_Percent: item.roi.toFixed(2) + '%'
     }));
 
@@ -200,13 +262,14 @@ export default async function RoiPage(props: PageProps) {
                     <Suspense fallback={null}>
                         <DateFilter />
                     </Suspense>
+                    <AdSpendDialog products={products || []} />
                 </div>
             </div>
 
             <SummaryCards
                 totalSales={totalSalesUnits}
                 totalRevenue={totalRevenue}
-                totalExpense={totalExpense}
+                totalExpense={totalOpExpense + totalAdSpend} // Showing Total Expense (Ops + Ads)
                 netProfit={netProfit}
             />
 
@@ -217,24 +280,27 @@ export default async function RoiPage(props: PageProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>পণ্য কর্মক্ষমতা (Product Performance)</CardTitle>
-                    <CardDescription>লাভের হার এবং আয় বিশ্লেষণ (From Invoices & Product Cost)</CardDescription>
+                    <CardDescription>
+                        আয়, খরচ (COGS + Ads), এবং লাভ বিশ্লেষণ
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>পণ্যের নাম (Item)</TableHead>
-                                <TableHead className='text-right'>বিক্রয় সংখ্যা (Units)</TableHead>
-                                <TableHead className='text-right'>মোট আয় (Revenue)</TableHead>
-                                <TableHead className='text-right'>কেনা খরচ (COGS)</TableHead>
-                                <TableHead className='text-right'>মোট লাভ (Profit)</TableHead>
+                                <TableHead className='text-right'>বিক্রয় (Units)</TableHead>
+                                <TableHead className='text-right'>আয় (Revenue)</TableHead>
+                                <TableHead className='text-right'>COGS</TableHead>
+                                <TableHead className='text-right'>Ads Cost</TableHead>
+                                <TableHead className='text-right'>Net Profit</TableHead>
                                 <TableHead className='text-right'>ROI %</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {roiData.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center">কোনো ডেটা পাওয়া যায়নি (No Data Found)</TableCell>
+                                    <TableCell colSpan={7} className="text-center">কোনো ডেটা পাওয়া যায়নি (No Data Found)</TableCell>
                                 </TableRow>
                             ) : (
                                 roiData.map((item, idx) => (
@@ -243,7 +309,10 @@ export default async function RoiPage(props: PageProps) {
                                         <TableCell className='text-right'>{item.units}</TableCell>
                                         <TableCell className='text-right'>৳{item.revenue.toLocaleString()}</TableCell>
                                         <TableCell className='text-right'>৳{item.cogs.toLocaleString()}</TableCell>
-                                        <TableCell className='text-right font-bold text-green-600'>৳{item.grossProfit.toLocaleString()}</TableCell>
+                                        <TableCell className='text-right'>৳{item.adCost.toLocaleString()}</TableCell>
+                                        <TableCell className={`text-right font-bold ${item.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            ৳{item.netProfit.toLocaleString()}
+                                        </TableCell>
                                         <TableCell className='text-right'>
                                             <Badge variant={item.roi > 50 ? 'default' : item.roi > 0 ? 'secondary' : 'destructive'}>
                                                 {item.roi.toFixed(1)}%
@@ -256,6 +325,6 @@ export default async function RoiPage(props: PageProps) {
                     </Table>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     );
 }

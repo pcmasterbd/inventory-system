@@ -84,6 +84,8 @@ export function ExpenseEntryForm({ onSubmit }: ExpenseEntryFormProps) {
                                 <SelectItem value="ad_cost">Ad Cost (বিজ্ঞাপন)</SelectItem>
                                 <SelectItem value="salary">Salary (বেতন)</SelectItem>
                                 <SelectItem value="fixed">Fixed Cost (স্থায়ী খরচ)</SelectItem>
+                                <SelectItem value="personal">Personal (ব্যক্তিগত)</SelectItem>
+                                <SelectItem value="assets">Assets (সম্পদ)</SelectItem>
                                 <SelectItem value="other">Other (অন্যান্য)</SelectItem>
                             </SelectContent>
                         </Select>
