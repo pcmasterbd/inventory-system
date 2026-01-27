@@ -89,9 +89,9 @@ export function ProductEntryDialog({ product }: ProductEntryDialogProps) {
                 setType("physical");
             }
             toast.success(product ? "Product updated" : "Product created");
-        } catch (error: any) {
+        } catch (error) {
             console.error("Failed to save product", error);
-            toast.error(error.message || "Failed to save product");
+            toast.error((error as Error).message || "Failed to save product");
         } finally {
             setIsLoading(false);
         }

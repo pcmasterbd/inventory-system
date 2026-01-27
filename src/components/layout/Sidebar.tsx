@@ -33,24 +33,23 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-    { href: "/dashboard", label: "ড্যাশবোর্ড (Dashboard)", icon: LayoutDashboard },
-    { href: "/dashboard/inventory", label: "ইনভেন্টরি (Inventory)", icon: Package },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     {
         href: "/dashboard/sales",
-        label: "বিক্রয় (Sales)",
-        icon: ShoppingCart,
+        label: "Money In",
+        icon: Wallet, // Or ArrowDownLeft from lucide if available, closest common: Wallet/TrendingUp
         children: [
-            { href: "/dashboard/sales", label: "Sales List", icon: ListOrdered },
+            { href: "/dashboard/sales", label: "Invoices (Sales)", icon: ListOrdered },
             { href: "/dashboard/sales/daily", label: "Daily Sales Entry", icon: ClipboardList },
         ]
     },
-    { href: "/dashboard/expenses", label: "খরচ (Expenses)", icon: Receipt },
-    { href: "/dashboard/funds", label: "তহবিল (Funds)", icon: Wallet },
-    { href: "/dashboard/roi", label: "ROI & Snapshot", icon: BarChart3 },
-    { href: "/dashboard/parties", label: "পার্টি (Parties)", icon: Users },
-    { href: "/dashboard/investments", label: "বিনিয়োগ (Investments)", icon: PiggyBank },
-    { href: "/dashboard/reports", label: "রিপোর্ট (Reports)", icon: ClipboardList },
-    { href: "/dashboard/settings", label: "সেটিংস (Settings)", icon: Settings },
+    { href: "/dashboard/expenses", label: "Money Out", icon: Receipt },
+    { href: "/dashboard/funds", label: "Accounts", icon: PiggyBank }, // Funds -> Accounts
+    { href: "/dashboard/parties", label: "Vendors", icon: Users }, // Parties -> Vendors
+    { href: "/dashboard/investments", label: "Projects", icon: BarChart3 }, // Investments -> Projects
+    { href: "/dashboard/inventory", label: "Inventory", icon: Package }, // Keep Inventory but maybe lower priority or same
+    { href: "/dashboard/reports", label: "Reports", icon: ClipboardList },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {

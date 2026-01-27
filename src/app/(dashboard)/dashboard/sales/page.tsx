@@ -14,18 +14,23 @@ export default async function SalesPage() {
     const summaryData = await getSalesSummary();
 
     return (
-        <div className="flex-1 p-4 md:p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-4 shrink-0">
-                <h2 className="text-2xl font-bold tracking-tight">বিক্রয় ব্যবস্থাপনা (Sales Management)</h2>
+        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            <div className="flex items-center justify-between space-y-2">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Money In (Sales)</h2>
+                    <p className="text-muted-foreground">
+                        Manage invoices, daily sales, and view transaction history.
+                    </p>
+                </div>
             </div>
 
             <Tabs defaultValue="bulk" className="flex-1 flex flex-col">
                 <div className="shrink-0 mb-4">
                     <TabsList>
-                        <TabsTrigger value="bulk">ডেইলি শিট (Daily Sheet)</TabsTrigger>
-                        <TabsTrigger value="pos">নতুন বিক্রয় (POS)</TabsTrigger>
-                        <TabsTrigger value="history">বিক্রয় ইতিহাস (History)</TabsTrigger>
-                        <TabsTrigger value="summary">সারসংক্ষেপ (Summary)</TabsTrigger>
+                        <TabsTrigger value="bulk">Daily Sheet</TabsTrigger>
+                        <TabsTrigger value="pos">New Sale (POS)</TabsTrigger>
+                        <TabsTrigger value="history">History</TabsTrigger>
+                        <TabsTrigger value="summary">Summary</TabsTrigger>
                     </TabsList>
                 </div>
 

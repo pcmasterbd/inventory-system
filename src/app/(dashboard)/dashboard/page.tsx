@@ -1,66 +1,102 @@
 import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
-import { DashboardStatsCards } from "@/components/dashboard/DashboardStatsCards"
-import { ProductManager } from "@/components/dashboard/ProductManager"
-import { TransactionManager } from "@/components/dashboard/TransactionManager"
-import { OverviewChart } from "@/components/dashboard/OverviewChart"
-import { AdSpendRevenueChart } from "@/components/dashboard/AdSpendRevenueChart"
-import { Button } from "@/components/ui/button"
-import { LogOut } from "lucide-react"
-import { signOut } from "@/app/actions"
-import { Product, Transaction, DashboardStats } from "@/lib/types"
-import { format, subDays } from "date-fns"
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader"
+import { SaaSStatsCards, SaaSStats } from "@/components/dashboard/SaaSStatsCards"
+import { FinancialCharts } from "@/components/dashboard/FinancialCharts"
+import { format, subDays, startOfMonth, startOfYesterday, isSameDay, isWithinInterval, startOfDay, endOfDay, subMonths, endOfMonth } from "date-fns"
 
-import { DailySnapshotWidget } from "@/components/dashboard/DailySnapshotWidget"
-
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: { range?: string, view?: string, account?: string, type?: string, category?: string } }) {
   const supabase = await createClient()
+  const range = searchParams.range || "today"
+  const view = searchParams.view || "overview"
+  const accountFilter = searchParams.account
+  const typeFilter = searchParams.type
+  const categoryFilter = searchParams.category
 
-  // Fetch Accounts (Funds)
-  const { data: accountsData } = await supabase.from('accounts').select('*')
-  const accounts = accountsData || []
+  // Date Range Logic
+  const today = new Date()
+  let startDate = startOfDay(today)
+  let endDate = endOfDay(today)
 
-  // Fetch Expenses (Operating Expenses)
-  const { data: expensesData } = await supabase.from('roi_expenses').select('amount')
-  const expensesList = expensesData || []
+  if (range === 'yesterday') {
+    startDate = startOfYesterday()
+    endDate = endOfDay(subDays(today, 1))
+  } else if (range === 'last_7_days') {
+    startDate = startOfDay(subDays(today, 6))
+    endDate = endOfDay(today)
+  } else if (range === 'this_month') {
+    startDate = startOfMonth(today)
+    endDate = endOfDay(today)
+  } else if (range === 'last_month') {
+    startDate = startOfMonth(subMonths(today, 1))
+    endDate = endOfMonth(subMonths(today, 1))
+  }
 
-  // Fetch Invoices (Sales)
-  const { data: invoicesData } = await supabase.from('invoices').select('total_amount, paid_amount')
-  const invoicesList = invoicesData || []
+  const startDateStr = format(startDate, "yyyy-MM-dd")
+  const endDateStrIncludeTime = endDate.toISOString()
 
-  // Fetch Products
-  const { data: productsData, error: productsError } = await supabase
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending: false })
-  if (productsError) console.error("Error fetching products:", productsError)
-  const products = (productsData || []) as Product[]
+  // --- 1. Fetch Data ---
 
-  // Fetch Transactions (Fixed: Ordering by 'date' instead of 'created_at')
-  const { data: transactionsData, error: transactionsError } = await supabase
+  // Fetch Accounts (for filter and balance)
+  const { data: accounts } = await supabase.from('accounts').select('*')
+  const totalBalance = (accounts || []).reduce((sum, acc) => sum + Number(acc.balance || 0), 0)
+
+  // Fetch Transactions (Inventory Purchases & System generated money activity)
+  let transactionQuery = supabase
     .from('transactions')
     .select('*')
+    .gte('date', startDateStr)
+    .lte('date', format(endDate, "yyyy-MM-dd"))
     .order('date', { ascending: false })
-  if (transactionsError) console.error("Error fetching transactions:", transactionsError.message)
-  const transactions = (transactionsData || []) as Transaction[]
 
-  // Fetch Invoice Items (For COGS)
-  const { data: invoiceItemsData } = await supabase.from('invoice_items').select('product_id, quantity')
-  const invoiceItems = invoiceItemsData || []
+  if (accountFilter && accountFilter !== 'all') {
+    transactionQuery = transactionQuery.ilike('payment_method', `%${accountFilter}%`)
+  }
+  // Type filter for transactions
+  if (typeFilter && typeFilter !== 'all') {
+    if (typeFilter === 'in') {
+      transactionQuery = transactionQuery.eq('type', 'income')
+    } else if (typeFilter === 'out') {
+      transactionQuery = transactionQuery.eq('type', 'expense')
+    }
+  }
+  if (categoryFilter && categoryFilter !== 'all') {
+    transactionQuery = transactionQuery.eq('category', categoryFilter)
+  }
 
-  // --- NEW: Fetch logic with Error Handling ---
-  const today = new Date()
-  const todayStr = format(today, "yyyy-MM-dd")
-  const thirtyDaysAgoStr = format(subDays(today, 30), "yyyy-MM-dd")
+  const { data: transactions } = await transactionQuery
 
-  let chartSalesData: Record<string, { revenue: number, cogs: number }> = {}
-  let chartAdData: Record<string, { adSpendDollar: number }> = {}
-  let settings = { dollar_rate: 120, office_rent: 0, monthly_salaries: 0 }
-  let totalInvestment = 0
+  // Fetch ROI Expenses (Manual Money Out - from Sidebar "Money Out")
+  // These are: Fixed, Daily, Personal, Assets
+  let expensesQuery = supabase
+    .from('roi_expenses')
+    .select('*')
+    .gte('date', startDateStr)
+    .lte('date', format(endDate, "yyyy-MM-dd"))
 
-  try {
-    // 1. Fetch Invoices (Last 30 Days) for Chart
-    const { data: recentInvoices } = await supabase
+  // Apply category filter to roi_expenses if applicable (mapping required if cat names differ)
+  // roi_expenses uses 'expense_type', transactions uses 'category'.
+  if (categoryFilter && categoryFilter !== 'all') {
+    expensesQuery = expensesQuery.eq('expense_type', categoryFilter)
+  }
+
+  const { data: roiExpenses } = await expensesQuery
+
+  // Fetch distinct categories for filter (Combined from transactions and expenses)
+  const { data: allTransactions } = await supabase.from('transactions').select('category')
+  const { data: allRoiExpenses } = await supabase.from('roi_expenses').select('expense_type')
+
+  // @ts-ignore
+  const transCats = allTransactions?.map(t => t.category).filter(Boolean) || []
+  // @ts-ignore
+  const expCats = allRoiExpenses?.map(e => e.expense_type).filter(Boolean) || []
+  const categories = Array.from(new Set([...transCats, ...expCats]))
+
+
+  // Invoices (Revenue)
+  let invoices: any[] = []
+  if (typeFilter !== 'out') {
+    const { data: invoicesData } = await supabase
       .from('invoices')
       .select(`
             id, 
@@ -71,179 +107,339 @@ export default async function DashboardPage() {
                 products (cost_price)
             )
         `)
-      .gte('created_at', thirtyDaysAgoStr)
-      .order('created_at', { ascending: true });
+      .gte('created_at', startDateStr)
+      .lte('created_at', endDateStrIncludeTime)
 
-    // Process Invoices into Daily Stats
-    (recentInvoices || []).forEach((inv: any) => {
-      const date = format(new Date(inv.created_at), "yyyy-MM-dd");
-      if (!chartSalesData[date]) chartSalesData[date] = { revenue: 0, cogs: 0 };
-
-      chartSalesData[date].revenue += inv.total_amount;
-
-      // Calculate COGS
-      inv.invoice_items.forEach((item: any) => {
-        const qty = item.quantity;
-        const cost = item.products?.cost_price || 0;
-        chartSalesData[date].cogs += (qty * cost);
-      });
-    });
-
-    // 2. Fetch Ad Costs from Daily Sales (Last 30 Days)
-    // We only care about ad_cost_dollar here, as sales are now auto-calculated
-    const { data: adCosts } = await supabase
-      .from('daily_sales')
-      .select('date, ad_cost_dollar')
-      .gte('date', thirtyDaysAgoStr)
-      .lte('date', todayStr);
-
-    (adCosts || []).forEach((entry: any) => {
-      const date = entry.date;
-      if (!chartAdData[date]) chartAdData[date] = { adSpendDollar: 0 };
-      chartAdData[date].adSpendDollar += Number(entry.ad_cost_dollar || 0);
-    });
-
-    // 3. Fetch Settings
-    const { data: settingsData, error: settingsError } = await supabase.from('settings').select('*').single()
-    if (settingsError && settingsError.code !== 'PGRST116') console.error("Error fetching settings:", settingsError)
-    if (settingsData) settings = settingsData
-
-    // 4. Fetch Investments
-    const { data: investmentsData, error: investmentsError } = await supabase.from('investments').select('capital_amount')
-    if (investmentsError) {
-      console.error("Error fetching investments:", investmentsError)
-    } else {
-      totalInvestment = (investmentsData || []).reduce((sum, inv) => sum + Number(inv.capital_amount || 0), 0)
-    }
-  } catch (err) {
-    console.error("Unexpected error in Dashboard fetch:", err)
+    invoices = invoicesData || []
   }
 
-  // Calculate Overall Stats
-  const totalSales = invoicesList.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0)
-  const totalExpense = expensesList.reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+  // Ad Costs (Marketing)
+  let adCosts: any[] = []
+  if (typeFilter !== 'in') {
+    const { data: adData } = await supabase
+      .from('product_ad_spends')
+      .select('date, amount_dollar, exchange_rate')
+      .gte('date', startDateStr)
+      .lte('date', format(endDate, "yyyy-MM-dd"))
+    adCosts = adData || []
+  }
 
-  const totalCOGS = invoiceItems.reduce((sum, item) => {
-    const product = products.find(p => p.id === item.product_id)
-    return sum + (item.quantity * (product?.cost_price || 0))
-  }, 0)
 
-  const netProfit = totalSales - totalCOGS - totalExpense
+  // D. Settings (fallback dollar rate)
+  const { data: settings } = await supabase.from('settings').select('*').single()
+  const globalDollarRate = Number(settings?.dollar_rate || 120)
 
-  // Calculate Today's Stats & Chart Data
-  let todaySales = 0
-  let todayCOGS = 0
-  let todayAdSpendDollar = 0
+  // --- 2. Calculate Stats ---
 
-  // Chart Data Aggregation
-  const chartDataMap = new Map<string, { date: string, revenue: number, adSpend: number, profit: number }>()
+  // A. Revenue & COGS
+  let totalRevenue = 0
+  let totalCOGS = 0
 
-  // Initialize last 30 days with 0
-  for (let i = 29; i >= 0; i--) {
-    const d = format(subDays(today, i), "yyyy-MM-dd")
-    const dLabel = format(subDays(today, i), "dd MMM")
+  invoices.forEach((inv: any) => {
+    // Only count positive invoices as revenue, negative as return deduction?
+    // Using total_amount handles returns (which are negative) correctly for Net Revenue.
+    totalRevenue += Number(inv.total_amount || 0)
 
-    const sales = chartSalesData[d] || { revenue: 0, cogs: 0 };
-    const ad = chartAdData[d] || { adSpendDollar: 0 };
-
-    const adSpendTk = ad.adSpendDollar * settings.dollar_rate;
-    const dailyProfit = sales.revenue - sales.cogs - adSpendTk; // Gross daily profit
-
-    chartDataMap.set(d, {
-      date: dLabel,
-      revenue: sales.revenue,
-      adSpend: adSpendTk,
-      profit: dailyProfit
+    // COGS
+    inv.invoice_items?.forEach((item: any) => {
+      const qty = item.quantity || 0 // can be negative for returns
+      const cost = item.products?.cost_price || 0
+      totalCOGS += (qty * cost)
     })
+  })
 
-    if (d === todayStr) {
-      todaySales = sales.revenue;
-      todayCOGS = sales.cogs;
-      todayAdSpendDollar = ad.adSpendDollar;
+  // B. Expenses Analysis
+  const FIXED_CATS = ["office_rent", "salary", "utility", "license_purchase", "fixed"];
+  // Personal & Assets are Money Out, but NOT Operational Expense for P&L usually.
+  // Although Personal Withdrawal IS a reduction of equity.
+  // Assets are Capital Expenditure.
+
+  // Marketing Costs
+  let marketingCosts = 0
+  adCosts.forEach((ad: any) => {
+    // Use stored exchange rate if available, otherwise global
+    const rate = Number(ad.exchange_rate) || globalDollarRate
+    marketingCosts += Number(ad.amount_dollar || 0) * rate
+  })
+
+  // ROI Expenses Breakdown
+  let fixedCosts = 0;
+  let operationalExpenses = 0; // Daily expenses
+  let miscCosts = 0; // Other operational
+  let totalCashOut = 0;
+
+  roiExpenses?.forEach((exp: any) => {
+    totalCashOut += Number(exp.amount || 0);
+
+    if (FIXED_CATS.includes(exp.expense_type)) {
+      fixedCosts += Number(exp.amount || 0);
+    } else if (["personal_withdrawal", "family_expense", "medical", "other_personal", "personal"].includes(exp.expense_type)) {
+      // Personal - not op expense usually
+    } else if (["equipment", "furniture", "electronics", "other_asset", "assets"].includes(exp.expense_type)) {
+      // Assets - not op expense
+    } else {
+      // Assume everything else is Operational (Daily)
+      operationalExpenses += Number(exp.amount || 0);
     }
+  })
+
+  // Transaction Expenses (Inventory Purchase, etc.)
+  let inventoryPurchaseVal = 0;
+
+  transactions?.forEach((tx: any) => {
+    if (tx.type === 'expense') {
+      totalCashOut += Number(tx.amount || 0);
+
+      if (tx.category === 'Inventory Purchase') {
+        inventoryPurchaseVal += Number(tx.amount || 0);
+      } else {
+        // Other system transactions? Treat as misc operational.
+        miscCosts += Number(tx.amount || 0);
+      }
+    } else if (tx.type === 'income') {
+      // Extra income entries?
+    }
+  })
+
+  // Consolidate for Display
+  const totalDailyOperational = operationalExpenses + miscCosts + marketingCosts;
+
+  // Profit Logic (Accrual-ish based on Sales COGS)
+  const grossProfit = totalRevenue - totalCOGS;
+  const netProfit = grossProfit - totalDailyOperational - fixedCosts;
+
+  const stats: SaaSStats = {
+    totalRevenue,
+    operationalExpenses: totalDailyOperational,
+    fixedCosts: fixedCosts,
+    miscCosts: operationalExpenses + miscCosts,
+    marketingCosts,
+    grossProfit,
+    netProfit,
+    currentBalance: totalBalance,
+    grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
+    netProfitMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
+    operatingRatio: totalRevenue > 0 ? ((totalDailyOperational + fixedCosts) / totalRevenue) * 100 : 0,
+    profitStatus: netProfit >= 0 ? 'Profitable' : 'Loss',
+    totalCOGS,
   }
 
-  // No specific processing loop needed here as we did it in loop above
-  // Removing old daily_sales loop
+  // --- 3. Prepare Chart Data (Daily Breakdown for the range) ---
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
-  // Convert Map to Array for Chart
+  // We'll group by date
+  const chartDataMap = new Map<string, { date: string, revenue: number, cogs: number, expenses: number }>()
+
+  // Init dates
+  for (let i = 0; i < diffDays; i++) {
+    const d = new Date(startDate)
+    d.setDate(d.getDate() + i)
+    const dateStr = format(d, "yyyy-MM-dd")
+    chartDataMap.set(dateStr, { date: format(d, "dd MMM"), revenue: 0, cogs: 0, expenses: 0 })
+  }
+
+  // @ts-ignore
+  invoices?.forEach((inv: any) => {
+    const dateStr = format(new Date(inv.created_at), "yyyy-MM-dd")
+    if (chartDataMap.has(dateStr)) {
+      const entry = chartDataMap.get(dateStr)!
+      entry.revenue += Number(inv.total_amount || 0)
+
+      let cogs = 0
+      inv.invoice_items?.forEach((item: any) => {
+        cogs += (item.quantity * (item.products?.cost_price || 0))
+      })
+      entry.cogs += cogs
+    }
+  })
+
+  // Add expenses to chart (Transactions + ROI Expenses + Ad Costs)
+  transactions?.forEach((tx: any) => {
+    // Only chart expenses if type is expense
+    if (tx.type === 'expense') {
+      const dateStr = tx.date // yyyy-MM-dd
+      if (chartDataMap.has(dateStr)) {
+        chartDataMap.get(dateStr)!.expenses += Number(tx.amount || 0)
+      }
+    }
+  })
+
+  roiExpenses?.forEach((exp: any) => {
+    const dateStr = format(new Date(exp.date), "yyyy-MM-dd")
+    // roi_expenses might match transactions date format if YYYY-MM-DD
+    // Check if exp.date is ISO or date string. Usually ISO from DB.
+    if (chartDataMap.has(dateStr)) {
+      chartDataMap.get(dateStr)!.expenses += Number(exp.amount || 0)
+    }
+  })
+
+  adCosts?.forEach((ad: any) => {
+    const dateStr = ad.date.split('T')[0] // product_ad_spends might be ISO
+    const rate = Number(ad.exchange_rate) || globalDollarRate
+    const costTk = Number(ad.amount_dollar || 0) * rate
+
+    // Check key format. chartDataMap uses yyyy-MM-dd
+    if (chartDataMap.has(dateStr)) {
+      chartDataMap.get(dateStr)!.expenses += costTk
+    }
+  })
+
   const chartData = Array.from(chartDataMap.values())
 
-  const dailyFixedCost = (Number(settings.office_rent) + Number(settings.monthly_salaries)) / 30
-  const todayAdSpendTk = todayAdSpendDollar * Number(settings.dollar_rate)
-  const todayProfit = todaySales - todayCOGS - todayAdSpendTk - dailyFixedCost
 
-  const totalRoi = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0
 
-  const stats: DashboardStats = {
-    todaySales,
-    todayProfit,
-    totalRoi,
-    todayAdSpend: todayAdSpendDollar,
-    totalSales,
-    totalCOGS,
-    totalExpense,
-    netProfit,
-    totalStockValue: products.reduce((sum, p) => sum + (Number(p.stock_quantity || 0) * Number(p.cost_price || 0)), 0),
-    cashBalance: accounts.find(a => a.name.toLowerCase().includes('cash'))?.balance || 0,
-    bankBalance: accounts.find(a => a.name.toLowerCase().includes('bank'))?.balance || 0,
-    mobileBalance: accounts.find(a => a.name.toLowerCase().includes('bkash') || a.name.toLowerCase().includes('nagad'))?.balance || 0,
+  // Additional Data for Specific Views
+  let investmentsResults: any[] = []
+  if (view === 'projects') {
+    const { data: invData } = await supabase.from('investments').select('*').order('created_at', { ascending: false })
+    investmentsResults = invData || []
   }
 
+  // Render Logic based on View
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">সারসংক্ষেপ (Overview)</h1>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground mr-2">অ্যাডমিন (Admin)</span>
-          <form action={signOut}>
-            <Button variant="outline" size="sm" className="gap-2">
-              <LogOut className="h-4 w-4" /> লগআউট
-            </Button>
-          </form>
-        </div>
-      </div>
+    <div className="space-y-8 p-1">
+      <DashboardHeader accounts={accounts || []} categories={categories} />
 
-      <DailySnapshotWidget />
+      {/* OVERVIEW VIEW */}
+      {view === 'overview' && (
+        <>
+          <Suspense fallback={<div className="h-60 w-full animate-pulse bg-muted rounded-xl" />}>
+            <SaaSStatsCards stats={stats} />
+          </Suspense>
 
-      <DashboardStatsCards stats={stats} />
-
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        <AdSpendRevenueChart data={chartData} />
-
-        <div className="lg:col-span-3">
-          <ProductManager products={products} />
-        </div>
-
-        <div className="lg:col-span-3 grid md:grid-cols-2 gap-6">
-          <TransactionManager />
-
-          {/* Recent Transactions List (Mini) */}
-          <div className="rounded-xl border bg-card text-card-foreground shadow">
-            <div className="p-6 pb-3">
-              <h3 className="font-semibold leading-none tracking-tight">সাম্প্রতিক কার্যকলাপ (Recent Activity)</h3>
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+            <div className="lg:col-span-3">
+              <FinancialCharts data={chartData} />
             </div>
-            <div className="p-6 pt-0 max-h-[400px] overflow-y-auto space-y-4">
-              {transactions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">কোনো লেনদেন পাওয়া যায়নি।</p>
-              ) : (
-                transactions.slice(0, 10).map((t) => (
-                  <div key={t.id} className="flex items-center justify-between border-b pb-2 last:border-0">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none capitalize">{t.type === 'income' ? 'আয় (Income)' : 'ব্যয় (Expense)'}</p>
-                      <p className="text-xs text-muted-foreground">{t.description || 'বিবরণ নেই'}</p>
-                      <p className="text-xs text-muted-foreground" suppressHydrationWarning>{new Date(t.date).toLocaleDateString()}</p>
-                    </div>
-                    <div className={`font-medium ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                      {t.type === 'income' ? '+' : '-'}৳{t.amount}
-                    </div>
-                  </div>
-                ))
-              )}
+          </div>
+        </>
+      )}
+
+      {/* CASH FLOW VIEW */}
+      {view === 'cashflow' && (
+        <div className="space-y-6">
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+            <div className="p-6 rounded-xl border bg-card text-card-foreground shadow-sm">
+              <h3 className="text-sm font-medium text-muted-foreground">This Period In</h3>
+              <p className="text-2xl font-bold text-emerald-600">+৳{stats.totalRevenue.toLocaleString()}</p>
+            </div>
+            <div className="p-6 rounded-xl border bg-card text-card-foreground shadow-sm">
+              <h3 className="text-sm font-medium text-muted-foreground">This Period Out</h3>
+              <p className="text-2xl font-bold text-red-600">-৳{totalCashOut.toLocaleString()}</p>
+            </div>
+            <div className="p-6 rounded-xl border bg-card text-card-foreground shadow-sm">
+              <h3 className="text-sm font-medium text-muted-foreground">Net Cash Flow</h3>
+              <p className={`text-2xl font-bold ${(stats.totalRevenue - totalCashOut) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                {(stats.totalRevenue - totalCashOut) >= 0 ? "+" : ""}৳{(stats.totalRevenue - totalCashOut).toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <FinancialCharts data={chartData} />
+        </div>
+      )}
+
+      {/* PROFIT VIEW */}
+      {view === 'profit' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="p-6 rounded-xl border bg-emerald-50/50">
+              <h3 className="text-sm font-semibold text-emerald-700">Gross Profit</h3>
+              <p className="text-3xl font-bold text-emerald-800">৳{stats.grossProfit.toLocaleString()}</p>
+              <p className="text-xs text-emerald-600 mt-1">{stats.grossMargin.toFixed(1)}% Margin</p>
+            </div>
+            <div className="p-6 rounded-xl border bg-blue-50/50">
+              <h3 className="text-sm font-semibold text-blue-700">Net Profit</h3>
+              <p className="text-3xl font-bold text-blue-800">৳{stats.netProfit.toLocaleString()}</p>
+              <p className="text-xs text-blue-600 mt-1">{stats.netProfitMargin.toFixed(1)}% Margin</p>
+            </div>
+          </div>
+          <div className="p-6 rounded-xl border">
+            <h3 className="font-semibold mb-4">Detailed Breakdown</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between border-b pb-2">
+                <span>Total Sales Revenue</span>
+                <span className="font-mono">৳{stats.totalRevenue.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 text-muted-foreground">
+                <span>- Cost of Goods Sold (COGS)</span>
+                <span className="font-mono">৳{stats.totalCOGS.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 font-medium">
+                <span>= Gross Profit</span>
+                <span className="font-mono">৳{stats.grossProfit.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 text-red-500">
+                <span>- Marketing Costs</span>
+                <span className="font-mono">৳{stats.marketingCosts.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 text-red-500">
+                <span>- Other Op. Expenses</span>
+                <span className="font-mono">৳{stats.miscCosts.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 text-red-500">
+                <span>- Fixed Costs (Prorated)</span>
+                <span className="font-mono">৳{stats.fixedCosts.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between pt-2 font-bold text-lg">
+                <span>= Net Profit</span>
+                <span className={`font-mono ${stats.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  ৳{stats.netProfit.toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* PROJECTS VIEW */}
+      {view === 'projects' && (
+        <div className="space-y-6">
+          <h3 className="text-lg font-semibold">Active Projects Analysis</h3>
+          {investmentsResults.length === 0 ? (
+            <p className="text-muted-foreground">No active projects found.</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {investmentsResults.map((inv: any) => {
+                const roi = inv.capital_amount > 0 ? (inv.current_return / inv.capital_amount) * 100 : 0
+                return (
+                  <div key={inv.id} className="p-6 rounded-xl border bg-card hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h4 className="font-bold text-lg">{inv.name}</h4>
+                        <p className="text-xs text-muted-foreground">{new Date(inv.start_date).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${inv.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {inv.status}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Capital</span>
+                        <span className="font-semibold">৳{inv.capital_amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Return</span>
+                        <span className={`font-semibold ${inv.current_return >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                          {inv.current_return >= 0 ? "+" : ""}৳{inv.current_return.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="pt-2 border-t mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-semibold uppercase text-muted-foreground">ROI</span>
+                          <span className={`text-lg font-bold ${roi >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                            {roi.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

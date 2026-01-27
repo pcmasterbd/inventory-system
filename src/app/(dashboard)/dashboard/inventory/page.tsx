@@ -1,5 +1,6 @@
 import { getProducts } from "@/app/actions/inventory";
 import { ProductEntryDialog } from "@/components/inventory/ProductEntryDialog";
+import { StockPurchaseDialog } from "@/components/inventory/StockPurchaseDialog";
 import { ProductList } from "@/components/inventory/ProductList";
 import { Separator } from "@/components/ui/separator";
 
@@ -15,7 +16,10 @@ export default async function InventoryPage() {
                         Manage your products, stock levels, and pricing.
                     </p>
                 </div>
-                <ProductEntryDialog />
+                <div className="flex gap-2">
+                    <StockPurchaseDialog products={products || []} />
+                    <ProductEntryDialog />
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-1">

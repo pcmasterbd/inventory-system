@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createInvoice } from "@/app/actions/sales";
 import { ProductSearch } from "./ProductSearch";
 import { Cart } from "./Cart";
+import { StockManager } from "../inventory/StockManager";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
@@ -34,11 +35,20 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
     const [selectedCustomer, setSelectedCustomer] = useState<string>("");
     const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+    // Filter out products with no ID to be safe
+    const validProducts = products.filter(p => p.id);
+
     const addToCart = (product: Product) => {
         setCart((prev) => {
             const existing = prev.find((item) => item.id === product.id);
+            const currentQty = existing ? existing.quantity : 0;
+            const newQty = currentQty + 1;
+
+            if (newQty > product.stock_quantity) {
+                toast.warning(`Low Stock Warning: Only ${product.stock_quantity} available`);
+            }
+
             if (existing) {
-                // If adding same item, just increment. If it was negative (return), it approaches 0.
                 return prev.map((item) =>
                     item.id === product.id
                         ? { ...item, quantity: item.quantity + 1 }
@@ -58,9 +68,13 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
             prev.map((item) => {
                 if (item.id === productId) {
                     const newQty = item.quantity + delta;
-                    // Allow negative for Return/Exchange. 
-                    // If 0, we can remove or keep. Let's keep smooth transition: 1 -> 0 -> -1.
-                    // User can remove using Trash icon if they want to clear.
+
+                    // Check stock limit if increasing
+                    const product = products.find(p => p.id === productId);
+                    if (delta > 0 && product && newQty > product.stock_quantity) {
+                        toast.warning(`Low Stock Warning: Only ${product.stock_quantity} available`);
+                    }
+
                     return { ...item, quantity: newQty };
                 }
                 return item;
@@ -75,6 +89,14 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
         setIsCheckingOut(true);
 
         try {
+            // Check for potential stock outs
+            const outOfStockItems: string[] = [];
+            cart.forEach(item => {
+                if (item.stock_quantity - item.quantity <= 0) {
+                    outOfStockItems.push(item.name);
+                }
+            });
+
             await createInvoice({
                 customer_id: (selectedCustomer && selectedCustomer !== 'walk-in') ? selectedCustomer : undefined,
                 items: cart.filter(i => i.quantity !== 0).map(item => ({
@@ -88,6 +110,17 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
 
             clearCart();
             toast.success("Transaction Completed!");
+
+            // Trigger Out of Stock Notifications
+            if (outOfStockItems.length > 0) {
+                outOfStockItems.forEach(name => {
+                    toast.error(`Alert: ${name} is now Out of Stock!`, {
+                        duration: 5000,
+                        className: "bg-destructive text-destructive-foreground"
+                    });
+                });
+            }
+
         } catch (error) {
             console.error("Checkout failed", error);
             toast.error("Checkout failed. Check console.");
@@ -97,27 +130,36 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full pb-10">
-            {/* Product Section (Left 2 cols) */}
-            <Card className="md:col-span-2 p-4 overflow-y-auto">
-                <ProductSearch
-                    products={products}
-                    onAdd={addToCart}
-                />
-            </Card>
+        <div className="flex flex-col h-full gap-4">
+            <div className="flex justify-between items-center bg-card p-3 rounded-lg border shadow-sm">
+                <h2 className="text-xl font-bold tracking-tight">Point of Sale</h2>
+                <div className="flex items-center gap-2">
+                    <StockManager products={validProducts} />
+                </div>
+            </div>
 
-            {/* Cart Section (Right 1 col) */}
-            <div className="h-full">
-                <Cart
-                    items={cart}
-                    customers={customers}
-                    selectedCustomer={selectedCustomer}
-                    onSelectCustomer={setSelectedCustomer}
-                    onRemove={removeFromCart}
-                    onUpdateQuantity={updateQuantity}
-                    onCheckout={handleCheckout}
-                    isProcessing={isCheckingOut}
-                />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full pb-10">
+                {/* Product Section (Left 2 cols) */}
+                <Card className="md:col-span-2 p-4 overflow-y-auto">
+                    <ProductSearch
+                        products={validProducts}
+                        onAdd={addToCart}
+                    />
+                </Card>
+
+                {/* Cart Section (Right 1 col) */}
+                <div className="h-full">
+                    <Cart
+                        items={cart}
+                        customers={customers}
+                        selectedCustomer={selectedCustomer}
+                        onSelectCustomer={setSelectedCustomer}
+                        onRemove={removeFromCart}
+                        onUpdateQuantity={updateQuantity}
+                        onCheckout={handleCheckout}
+                        isProcessing={isCheckingOut}
+                    />
+                </div>
             </div>
         </div>
     );

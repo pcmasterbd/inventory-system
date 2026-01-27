@@ -96,9 +96,9 @@ export default async function ExpensesPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">খরচ ব্যবস্থাপনা (Expense Manager)</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Money Out</h1>
                     <p className="text-muted-foreground mt-1">
-                        সকল খরচের হিসাব রাখুন: ডেইলি, ফিক্সড, পার্সোনাল এবং সম্পদ।
+                        Track all operational, fixed, and personal expenses.
                     </p>
                 </div>
                 <ExpenseEntryDialog />

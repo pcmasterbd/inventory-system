@@ -77,7 +77,7 @@ export default async function FundsPage(props: PageProps) {
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <h1 className="text-3xl font-bold tracking-tight">তহবিল ব্যবস্থাপনা (Funds Management)</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Accounts (Funds)</h1>
                 <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:ml-auto justify-end w-full md:w-auto">
                     <ExportButtons
                         data={exportData}

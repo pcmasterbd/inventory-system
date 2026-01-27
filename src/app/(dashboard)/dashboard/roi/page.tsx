@@ -70,8 +70,8 @@ export default async function RoiPage(props: PageProps) {
 
     if (itemsError) console.error("ROI: Invoice Items Error", itemsError);
 
-    // 2. Fetch Operational Expenses
-    const { data: expenses, error: expenseError } = await supabase
+    // 2. Fetch Operational Expenses (Transactions + Manual ROI Expenses)
+    const { data: transactionsErr, error: expenseError } = await supabase
         .from("transactions")
         .select("*")
         .eq('user_id', user.id)
@@ -79,7 +79,18 @@ export default async function RoiPage(props: PageProps) {
         .gte("date", startPeriod)
         .lte("date", endPeriod);
 
-    if (expenseError) console.error("ROI: Expenses Error", expenseError);
+    if (expenseError) console.error("ROI: Transaction Expenses Error", expenseError);
+
+    // Fetch Manual Expenses (Money Out)
+    const { data: manualExpenses, error: manualExpError } = await supabase
+        .from("roi_expenses")
+        .select("*")
+        .eq('user_id', user.id)
+        .gte("date", startPeriod)
+        .lte("date", endPeriod);
+
+    if (manualExpError) console.error("ROI: Manual Expenses Error", manualExpError);
+
 
     // 3. Fetch Ad Spends
     const { data: adSpends, error: adsError } = await supabase
@@ -163,7 +174,7 @@ export default async function RoiPage(props: PageProps) {
 
     // B. Process Ad Spends
     adSpends?.forEach((ad) => {
-        const amount = Number(ad.amount_bdt);
+        const amount = Number(ad.amount_bdt) || (Number(ad.amount_dollar || 0) * (Number(ad.exchange_rate) || 120));
         const date = ad.date.split('T')[0];
 
         totalAdSpend += amount;
@@ -174,8 +185,6 @@ export default async function RoiPage(props: PageProps) {
             prodStats.adCost += amount;
         } else if (ad.product_id) {
             // If product had no sales but has ads (rare but possible)
-            // We ideally should fetch name, but for now skipped or need manual lookup if map checks fail
-            // Checking if we have it in product list
             const pName = products?.find(p => p.id === ad.product_id)?.name || "Unknown";
             if (!productPerformance.has(ad.product_id)) {
                 productPerformance.set(ad.product_id, {
@@ -198,11 +207,18 @@ export default async function RoiPage(props: PageProps) {
         chartEntry.profit -= amount; // Reduce daily profit by ad spend
     });
 
-    // C. Process Operational Expenses
+    // C. Process Operational Expenses (Transactions + Manual)
     let totalOpExpense = 0;
-    expenses?.forEach((exp) => {
+
+    // Process System Transactions
+    transactionsErr?.forEach((exp) => {
         const amount = Number(exp.amount);
         const date = exp.date.split('T')[0];
+
+        // Skip Inventory Purchase if we treat it as asset exchange, but ROI usually wants Cash Out or Op Expense?
+        // Standard P&L: Inventory Purchase is not Op Expense. COGS is.
+        // If transaction category is 'Inventory Purchase', we might exclude it from "Op Expense" here to match Dashboard Net Profit.
+        if (exp.category === 'Inventory Purchase') return;
 
         totalOpExpense += amount;
 
@@ -211,6 +227,30 @@ export default async function RoiPage(props: PageProps) {
         }
         const chartEntry = chartDataMap.get(date);
         chartEntry.profit -= amount; // Reduce daily profit
+        chartEntry.expense += amount;
+    });
+
+    // Process Manual Expenses (Money Out)
+    manualExpenses?.forEach((exp) => {
+        const amount = Number(exp.amount);
+        const date = exp.date.split('T')[0];
+
+        // Exclude Personal/Assets if we want strict P&L Net Profit?
+        // Dashboard excludes Personal/Assets from Net Profit.
+        // Let's filter like Dashboard.
+        const type = exp.expense_type;
+        const isPersonal = ["personal_withdrawal", "family_expense", "medical", "other_personal", "personal"].includes(type);
+        const isAsset = ["equipment", "furniture", "electronics", "other_asset", "assets"].includes(type);
+
+        if (isPersonal || isAsset) return;
+
+        totalOpExpense += amount;
+
+        if (!chartDataMap.has(date)) {
+            chartDataMap.set(date, { date: date, revenue: 0, profit: 0, expense: 0 });
+        }
+        const chartEntry = chartDataMap.get(date);
+        chartEntry.profit -= amount;
         chartEntry.expense += amount;
     });
 

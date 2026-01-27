@@ -21,9 +21,9 @@ export default async function InvestmentsPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">বিনিয়োগ (Investments)</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Projects (Investments)</h1>
                     <p className="text-muted-foreground mt-1">
-                        আপনার বিনিয়োগ এবং লাভের হিসাব রাখুন।
+                        Track your project investments and returns.
                     </p>
                 </div>
                 <InvestmentEntryDialog />
@@ -32,7 +32,7 @@ export default async function InvestmentsPage() {
             {/* Investment Stats */}
             <div className="grid gap-6 md:grid-cols-3">
                 <StatsCard
-                    title="মোট বিনিয়োগ"
+                    title="Total Investment"
                     value={`৳${totalCapital.toLocaleString()}`}
                     icon={Briefcase}
                     trend="neutral"
@@ -40,7 +40,7 @@ export default async function InvestmentsPage() {
                     color="primary"
                 />
                 <StatsCard
-                    title="বর্তমান ভ্যালু"
+                    title="Current Value"
                     value={`৳${currentValue.toLocaleString()}`}
                     icon={TrendingUp}
                     trend={totalReturn >= 0 ? "up" : "down"}
@@ -48,7 +48,7 @@ export default async function InvestmentsPage() {
                     color="success"
                 />
                 <StatsCard
-                    title="মোট লাভ/ক্ষতি"
+                    title="Net Profit/Loss"
                     value={`৳${totalReturn.toLocaleString()}`}
                     icon={DollarSign}
                     trend={totalReturn >= 0 ? "up" : "down"}
