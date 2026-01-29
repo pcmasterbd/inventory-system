@@ -11,6 +11,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function Header() {
     return (
@@ -27,6 +28,8 @@ export function Header() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-4 ml-auto">
+                <ThemeToggle />
+
                 <button className="p-2.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors relative">
                     <Bell size={20} />
                     <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 border-2 border-background"></span>
