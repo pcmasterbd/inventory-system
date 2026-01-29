@@ -13,7 +13,7 @@ export function DeleteProductButton({ id }: { id: string }) {
             variant="ghost"
             size="sm"
             disabled={isPending}
-            onClick={() => startTransition(async () => await deleteProduct(id))}
+            onClick={() => startTransition(async () => { await deleteProduct(id); })}
             className="text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
         >
             <Trash2 className="h-4 w-4" />
