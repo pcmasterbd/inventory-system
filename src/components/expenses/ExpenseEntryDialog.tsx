@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Loader2, Edit } from "lucide-react";
 import { addExpense, updateExpense } from "@/app/actions/expenses";
 import { toast } from "sonner";
+import { useLanguage } from "@/context/language-context";
 
 interface ExpenseEntryDialogProps {
     expense?: {
@@ -29,46 +30,45 @@ interface ExpenseEntryDialogProps {
     };
 }
 
-const FIXED_CATEGORIES = [
-    { value: "office_rent", label: "অফিস ভাড়া (Office Rent)" },
-    { value: "salary", label: "বেতন (Salaries)" },
-    { value: "utility", label: "বিদ্যুৎ/ইন্টারনেট (Utility)" },
-    { value: "license_purchase", label: "লাইসেন্স/সফটওয়্যার (License/Software)" },
-];
-
-const DAILY_CATEGORIES = [
-    { value: "tea_snacks", label: "চা/নাস্তা (Tea/Snacks)" },
-    { value: "transport", label: "যাতায়াত (Transport)" },
-    { value: "mobile_bill", label: "মোবাইল বিল (Mobile Bill)" },
-    { value: "repair", label: "মেরামত (Repair)" },
-    { value: "cleaning", label: "পরিচ্ছন্নতা (Cleaning)" },
-    { value: "ad_cost", label: "বিজ্ঞাপন (Ad Cost)" },
-    { value: "other", label: "অন্যান্য (Others)" },
-];
-
-const PERSONAL_CATEGORIES = [
-    { value: "personal_withdrawal", label: "হাত খরচ (Personal Withdrawal)" },
-    { value: "family_expense", label: "পরিবার (Family)" },
-    { value: "medical", label: "চিকিৎসা (Medical)" },
-    { value: "other_personal", label: "অন্যান্য (Other Personal)" },
-];
-
-const ASSETS_CATEGORIES = [
-    { value: "equipment", label: "যন্ত্রপাতি (Equipment)" },
-    { value: "furniture", label: "আসবাবপত্র (Furniture)" },
-    { value: "electronics", label: "ইলেকট্রনিক্স (Electronics)" },
-    { value: "other_asset", label: "অন্যান্য (Other Asset)" },
-];
-
 export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-
-    // Form States
     const [costType, setCostType] = useState<"fixed" | "daily" | "personal" | "assets">("daily");
     const [desc, setDesc] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("other");
+    const { t } = useLanguage();
+
+    const FIXED_CATEGORIES = [
+        { value: "office_rent", label: t("expenses.categories.office_rent") },
+        { value: "salary", label: t("expenses.categories.salary") },
+        { value: "utility", label: t("expenses.categories.utility") },
+        { value: "license_purchase", label: t("expenses.categories.license_purchase") },
+    ];
+
+    const DAILY_CATEGORIES = [
+        { value: "tea_snacks", label: t("expenses.categories.tea_snacks") },
+        { value: "transport", label: t("expenses.categories.transport") },
+        { value: "mobile_bill", label: t("expenses.categories.mobile_bill") },
+        { value: "repair", label: t("expenses.categories.repair") },
+        { value: "cleaning", label: t("expenses.categories.cleaning") },
+        { value: "ad_cost", label: t("expenses.categories.ad_cost") },
+        { value: "other", label: t("expenses.categories.other") },
+    ];
+
+    const PERSONAL_CATEGORIES = [
+        { value: "personal_withdrawal", label: t("expenses.categories.personal_withdrawal") },
+        { value: "family_expense", label: t("expenses.categories.family_expense") },
+        { value: "medical", label: t("expenses.categories.medical") },
+        { value: "other_personal", label: t("expenses.categories.other_personal") },
+    ];
+
+    const ASSETS_CATEGORIES = [
+        { value: "equipment", label: t("expenses.categories.equipment") },
+        { value: "furniture", label: t("expenses.categories.furniture") },
+        { value: "electronics", label: t("expenses.categories.electronics") },
+        { value: "other_asset", label: t("expenses.categories.other_asset") },
+    ];
 
     // Initialize/Reset
     useEffect(() => {
@@ -162,38 +162,38 @@ export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
                 ) : (
                     <Button className="gap-2 shadow-lg shadow-primary/25">
                         <Plus size={18} />
-                        নতুন খরচ (Add Expense)
+                        {t("expenses.addExpense")}
                     </Button>
                 )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[550px]">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? "খরচ আপডেট করুন" : "নতুন খরচ যুক্ত করুন"}</DialogTitle>
+                    <DialogTitle>{isEdit ? `${t("common.edit")} ${t("common.expenses")}` : t("expenses.addExpense")}</DialogTitle>
                     <DialogDescription>
-                        খরচের ধরণ নির্বাচন করে বিবরণ দিন।
+                        {isEdit ? t("expenses.description") : t("expenses.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     {/* Expense Type Toggle */}
                     <div className="grid gap-2">
-                        <Label>খরচের ধরণ (Expense Type)</Label>
+                        <Label>{t("dashboard.type")}</Label>
                         <Tabs defaultValue="daily" value={costType} onValueChange={(v) => handleTypeChange(v as any)} className="w-full">
                             <TabsList className="grid w-full grid-cols-4 h-auto">
-                                <TabsTrigger value="daily" className="text-xs py-2">ডেইলি (Daily)</TabsTrigger>
-                                <TabsTrigger value="fixed" className="text-xs py-2">ফিক্সড (Fixed)</TabsTrigger>
-                                <TabsTrigger value="personal" className="text-xs py-2">পার্সোনাল (Personal)</TabsTrigger>
-                                <TabsTrigger value="assets" className="text-xs py-2">সম্পদ (Assets)</TabsTrigger>
+                                <TabsTrigger value="daily" className="text-xs py-2">{t("expenses.stats.daily")}</TabsTrigger>
+                                <TabsTrigger value="fixed" className="text-xs py-2">{t("expenses.stats.fixed")}</TabsTrigger>
+                                <TabsTrigger value="personal" className="text-xs py-2">{t("expenses.stats.personal")}</TabsTrigger>
+                                <TabsTrigger value="assets" className="text-xs py-2">{t("expenses.stats.assets")}</TabsTrigger>
                             </TabsList>
                         </Tabs>
                     </div>
 
                     {/* Category Select */}
                     <div className="grid gap-2">
-                        <Label>ক্যাটাগরি (Category)</Label>
+                        <Label>{t("expenses.table.category")}</Label>
                         <Select onValueChange={setCategory} value={category}>
                             <SelectTrigger>
-                                <SelectValue placeholder="ক্যাটাগরি সিলেক্ট করুন" />
+                                <SelectValue placeholder={t("expenses.table.category")} />
                             </SelectTrigger>
                             <SelectContent>
                                 {currentCategories.map((cat) => (
@@ -206,17 +206,17 @@ export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>বিবরণ (Description)</Label>
+                        <Label>{t("expenses.table.description")}</Label>
                         <Input
                             value={desc}
                             onChange={(e) => setDesc(e.target.value)}
-                            placeholder="বিস্তারিত লিখুন..."
+                            placeholder={t("expenses.table.description")}
                             required
                         />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>পরিমাণ (Amount)</Label>
+                        <Label>{t("expenses.table.amount")}</Label>
                         <Input
                             type="number"
                             value={amount}
@@ -229,7 +229,7 @@ export function ExpenseEntryDialog({ expense }: ExpenseEntryDialogProps) {
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isEdit ? "আপডেট করুন" : "সেভ করুন"}
+                            {isEdit ? t("common.save") : t("common.save")}
                         </Button>
                     </DialogFooter>
                 </form>

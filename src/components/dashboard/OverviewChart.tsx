@@ -2,18 +2,10 @@
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
-// Mock data for now, or processed from transactions
-// In a real app we'd aggregate this from the transaction list passed as props
-const data = [
-    { name: "Jan", income: 0, expense: 0 },
-    { name: "Feb", income: 0, expense: 0 },
-    // We can populate this dynamically if we have historical data
-]
+import { useLanguage } from "@/context/language-context";
 
 export function OverviewChart({ transactions }: { transactions: any[] }) {
-    // Process transactions to group by month
-    // diverse colors for aesthetic
+    const { t } = useLanguage();
 
     // Simple aggregation by month
     const monthlyData = new Map<string, { name: string, income: number, expense: number }>();
@@ -27,11 +19,10 @@ export function OverviewChart({ transactions }: { transactions: any[] }) {
         }
 
         const current = monthlyData.get(month)!;
-        if (t.type === 'income') current.income += Number(t.amount);
-        if (t.type === 'expense') current.expense += Number(t.amount);
+        if (t.transaction_type === 'income') current.income += Number(t.amount);
+        if (t.transaction_type === 'expense') current.expense += Number(t.amount);
     });
 
-    // Convert to array and sort (optional) - for now just current data
     const chartData = Array.from(monthlyData.values()).length > 0
         ? Array.from(monthlyData.values())
         : [{ name: 'Current', income: 0, expense: 0 }];
@@ -39,7 +30,7 @@ export function OverviewChart({ transactions }: { transactions: any[] }) {
     return (
         <Card className="col-span-2">
             <CardHeader>
-                <CardTitle>আর্থিক পর্যালোচনা (Financial Overview)</CardTitle>
+                <CardTitle>{t("dashboard.financialOverview")}</CardTitle>
             </CardHeader>
             <CardContent className="pl-2">
                 <div className="h-[300px] w-full">
@@ -64,8 +55,8 @@ export function OverviewChart({ transactions }: { transactions: any[] }) {
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             />
                             <Legend />
-                            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} name="আয় (Income)" />
-                            <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} name="ব্যয় (Expense)" />
+                            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} name={t("dashboard.income")} />
+                            <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} name={t("dashboard.expense")} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>

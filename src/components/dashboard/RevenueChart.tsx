@@ -10,6 +10,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { useLanguage } from "@/context/language-context";
 
 const data = [
     { name: "Jan", total: 1500 },
@@ -22,6 +23,7 @@ const data = [
 ];
 
 export function RevenueChart() {
+    const { t } = useLanguage();
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
@@ -31,9 +33,9 @@ export function RevenueChart() {
     if (!isMounted) {
         return (
             <div className="xl:col-span-2 min-h-[400px] bg-white/50 backdrop-blur-sm dark:bg-card/50 rounded-xl border border-border/50 p-6 shadow-sm">
-                <h3 className="text-xl font-semibold mb-6">আয় বিশ্লেষণ</h3>
+                <h3 className="text-xl font-semibold mb-6">{t("dashboard.revenueAnalysis")}</h3>
                 <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
-                    চার্ট লোড হচ্ছে...
+                    {t("common.loading")}
                 </div>
             </div>
         );
@@ -41,7 +43,7 @@ export function RevenueChart() {
 
     return (
         <div className="xl:col-span-2 min-h-[400px] bg-white/50 backdrop-blur-sm dark:bg-card/50 rounded-xl border border-border/50 p-6 shadow-sm">
-            <h3 className="text-xl font-semibold mb-6">আয় বিশ্লেষণ</h3>
+            <h3 className="text-xl font-semibold mb-6">{t("dashboard.revenueAnalysis")}</h3>
             <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart

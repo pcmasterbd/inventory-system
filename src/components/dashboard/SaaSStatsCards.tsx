@@ -1,108 +1,99 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { DollarSign, Wrench, Wallet, PieChart, TrendingUp, TrendingDown, Target, Activity, Banknote, CreditCard, Landmark } from "lucide-react"
+"use client";
 
-export interface SaaSStats {
-    totalRevenue: number
-    operationalExpenses: number
-    fixedCosts: number
-    miscCosts: number
-    marketingCosts: number
-    grossProfit: number
-    netProfit: number
-    currentBalance: number
-    grossMargin: number
-    netProfitMargin: number
-    operatingRatio: number
-    profitStatus: 'Profitable' | 'Loss'
-    totalCOGS: number
-}
+import { Card, CardContent } from "@/components/ui/card"
+import { DollarSign, Wrench, Wallet, PieChart, TrendingUp, TrendingDown, Target, Activity, Landmark } from "lucide-react"
+import { useLanguage } from "@/context/language-context";
+
+import { SaaSStats } from "@/lib/types";
 
 export function SaaSStatsCards({ stats, currencySpec = "৳" }: { stats: SaaSStats, currencySpec?: string }) {
+    const { t } = useLanguage();
+
     const formatMoney = (amount: number) => {
         return `${currencySpec}${amount.toLocaleString()}`
     }
 
     const cards = [
         {
-            label: "Total Revenue",
+            label: t("dashboard.totalRevenue"),
             value: formatMoney(stats.totalRevenue),
             icon: DollarSign,
             color: "text-emerald-500",
             bg: "bg-emerald-500/10"
         },
         {
-            label: "Operational Expenses",
+            label: t("dashboard.operationalExpensesLabel"),
             value: formatMoney(stats.operationalExpenses),
             icon: Wrench,
             color: "text-orange-500",
             bg: "bg-orange-500/10"
         },
         {
-            label: "Fixed Costs",
+            label: t("dashboard.fixedCostsLabel"),
             value: formatMoney(stats.fixedCosts),
-            icon: Landmark, // Simulating Fixed structure
+            icon: Landmark,
             color: "text-blue-500",
             bg: "bg-blue-500/10"
         },
         {
-            label: "Miscellaneous Costs",
+            label: t("dashboard.miscCostsLabel"),
             value: formatMoney(stats.miscCosts),
             icon: Activity,
             color: "text-red-400",
             bg: "bg-red-400/10"
         },
         {
-            label: "Marketing Costs",
+            label: t("dashboard.marketingCostsLabel"),
             value: formatMoney(stats.marketingCosts),
             icon: Target,
             color: "text-rose-500",
             bg: "bg-rose-500/10"
         },
         {
-            label: "Gross Profit",
+            label: t("dashboard.grossProfit"),
             value: formatMoney(stats.grossProfit),
             icon: PieChart,
             color: "text-violet-500",
             bg: "bg-violet-500/10"
         },
         {
-            label: "Net Profit or Loss",
+            label: t("dashboard.netProfitLabel"),
             value: formatMoney(stats.netProfit),
             icon: stats.netProfit >= 0 ? TrendingUp : TrendingDown,
             color: stats.netProfit >= 0 ? "text-emerald-600" : "text-red-500",
             bg: stats.netProfit >= 0 ? "bg-emerald-600/10" : "bg-red-500/10"
         },
         {
-            label: "Current Balance",
+            label: t("dashboard.currentBalance"),
             value: formatMoney(stats.currentBalance),
             icon: Wallet,
             color: "text-cyan-500",
             bg: "bg-cyan-500/10"
         },
         {
-            label: "Gross Margin",
+            label: t("dashboard.grossMargin"),
             value: `${stats.grossMargin.toFixed(1)}%`,
             icon: Activity,
             color: "text-pink-500",
             bg: "bg-pink-500/10"
         },
         {
-            label: "Net Profit Margin",
+            label: t("dashboard.netProfitMargin"),
             value: `${stats.netProfitMargin.toFixed(1)}%`,
             icon: Target,
             color: "text-amber-500",
             bg: "bg-amber-500/10"
         },
         {
-            label: "Operating Ratio",
+            label: t("dashboard.operatingRatio"),
             value: `${stats.operatingRatio.toFixed(1)}%`,
             icon: Activity,
             color: "text-teal-500",
             bg: "bg-teal-500/10"
         },
         {
-            label: "Profit Status",
-            value: stats.profitStatus,
+            label: t("dashboard.profitStatus"),
+            value: stats.profitStatus === 'Profitable' ? t("dashboard.profitable") : t("dashboard.loss"),
             icon: stats.profitStatus === 'Profitable' ? TrendingUp : TrendingDown,
             color: stats.profitStatus === 'Profitable' ? "text-green-600" : "text-red-600",
             bg: stats.profitStatus === 'Profitable' ? "bg-green-600/10" : "bg-red-600/10"

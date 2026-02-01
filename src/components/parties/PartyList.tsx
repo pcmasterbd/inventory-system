@@ -6,6 +6,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { useLanguage } from "@/context/language-context";
 import {
     Table,
     TableBody,
@@ -22,28 +23,29 @@ interface PartyListProps {
     parties: any[];
     type: "customer" | "supplier";
 }
-
 export function PartyList({ parties, type }: PartyListProps) {
+    const { t } = useLanguage();
+
     return (
         <Card className="h-full">
             <CardHeader>
-                <CardTitle>{type === 'customer' ? 'Customer' : 'Supplier'} List</CardTitle>
+                <CardTitle>{type === 'customer' ? t("parties.tabs.customers") : t("parties.tabs.suppliers")}</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Phone</TableHead>
-                            <TableHead>Balance</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
+                            <TableHead>{t("parties.table.name")}</TableHead>
+                            <TableHead>{t("parties.table.phone")}</TableHead>
+                            <TableHead>{t("parties.table.balance")}</TableHead>
+                            <TableHead className="text-right">{t("parties.table.actions")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {parties.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={4} className="text-center text-muted-foreground">
-                                    No {type}s found.
+                                    {t("common.noData")}
                                 </TableCell>
                             </TableRow>
                         ) : (

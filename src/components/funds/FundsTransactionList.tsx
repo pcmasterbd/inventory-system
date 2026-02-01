@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react' // If we add client-side filtering later
+import { useState } from 'react'
+import { useLanguage } from "@/context/language-context"
 import {
     Table,
     TableBody,
@@ -24,15 +25,16 @@ interface Transaction {
 }
 
 export function FundsTransactionList({ initialTransactions }: { initialTransactions: Transaction[] }) {
+    const { t } = useLanguage()
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this transaction?")) return;
+        if (!confirm(t("accounts.deleteConfirm"))) return;
 
         const res = await deleteFundTransaction(id);
         if (res.error) {
             toast.error(res.error)
         } else {
-            toast.success("Transaction deleted")
+            toast.success(t("accounts.deleteSuccess"))
         }
     }
 
@@ -40,43 +42,46 @@ export function FundsTransactionList({ initialTransactions }: { initialTransacti
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>তারিখ (Date)</TableHead>
-                    <TableHead>ধরণ (Type)</TableHead>
-                    <TableHead>বিবরণ (Description)</TableHead>
-                    <TableHead className="text-right">পরিমাণ (Amount)</TableHead>
+                    <TableHead>{t("accounts.modal.date")}</TableHead>
+                    <TableHead>{t("accounts.modal.type")}</TableHead>
+                    <TableHead>{t("accounts.modal.descriptionLabel")}</TableHead>
+                    <TableHead className="text-right">{t("accounts.modal.amount")}</TableHead>
                     <TableHead className='w-[50px]'></TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {initialTransactions.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={5} className="text-center">কোনো লেনদেন পাওয়া যায়নি।</TableCell>
+                        <TableCell colSpan={5} className="text-center">{t("common.noData")}</TableCell>
                     </TableRow>
                 ) : (
-                    initialTransactions.map((t) => (
-                        <TableRow key={t.id}>
-                            <TableCell>{new Date(t.date).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                                <Badge variant={
-                                    t.transaction_type === 'deposit' || t.transaction_type === 'sales_deposit' ? 'default' :
-                                        t.transaction_type === 'withdrawal' || t.transaction_type === 'expense_payment' ? 'destructive' : 'secondary'
-                                }>
-                                    {t.transaction_type.replace('_', ' ')}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>{t.description || '-'}</TableCell>
-                            <TableCell className={`text-right font-medium ${t.transaction_type === 'deposit' || t.transaction_type === 'sales_deposit' ? 'text-green-600' : 'text-red-600'
-                                }`}>
-                                {t.transaction_type === 'withdrawal' || t.transaction_type === 'expense_payment' ? '-' : '+'}
-                                ৳{Number(t.amount).toLocaleString()}
-                            </TableCell>
-                            <TableCell>
-                                <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id)}>
-                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    ))
+                    initialTransactions.map((transaction) => {
+                        const t_type = transaction.transaction_type;
+                        return (
+                            <TableRow key={transaction.id}>
+                                <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                    <Badge variant={
+                                        t_type === 'deposit' || t_type === 'sales_deposit' ? 'default' :
+                                            t_type === 'withdrawal' || t_type === 'expense_payment' ? 'destructive' : 'secondary'
+                                    }>
+                                        {t(`accounts.types.${t_type as any}`) || t_type.replace('_', ' ')}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{transaction.description || '-'}</TableCell>
+                                <TableCell className={`text-right font-medium ${t_type === 'deposit' || t_type === 'sales_deposit' ? 'text-green-600' : 'text-red-600'
+                                    }`}>
+                                    {t_type === 'withdrawal' || t_type === 'expense_payment' ? '-' : '+'}
+                                    ৳{Number(transaction.amount).toLocaleString()}
+                                </TableCell>
+                                <TableCell>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(transaction.id)}>
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })
                 )}
             </TableBody>
         </Table>

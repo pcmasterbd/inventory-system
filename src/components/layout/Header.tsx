@@ -12,8 +12,12 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LanguageToggle } from "@/components/ui/language-toggle";
+import { useLanguage } from "@/context/language-context";
 
 export function Header() {
+    const { t } = useLanguage();
+
     return (
         <header className="h-20 sticky top-0 z-30 flex items-center justify-between px-8 bg-background/80 backdrop-blur-md border-b border-border">
             {/* Search Bar */}
@@ -21,13 +25,14 @@ export function Header() {
                 <Search className="absolute left-3 text-muted-foreground" size={20} />
                 <input
                     type="text"
-                    placeholder="Search products, orders, or customers..."
+                    placeholder={t("common.search")}
                     className="w-full pl-10 pr-4 py-2.5 rounded-full bg-muted/50 border-transparent focus:bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
                 />
             </div>
 
             {/* Right Actions */}
             <div className="flex items-center gap-4 ml-auto">
+                <LanguageToggle />
                 <ThemeToggle />
 
                 <button className="p-2.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors relative">
@@ -39,25 +44,25 @@ export function Header() {
                     <DropdownMenuTrigger asChild>
                         <button className="hidden sm:flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-full shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 active:translate-y-0 text-sm">
                             <Plus size={18} />
-                            <span className="font-medium">Quick Add</span>
+                            <span className="font-medium">{t("common.quickAdd")}</span>
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t("common.actions")}</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                             <Link href="/dashboard/sales/daily" className="cursor-pointer">
-                                <span>Daily Sales Entry</span>
+                                <span>{t("common.dailySales")}</span>
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                             <Link href="/dashboard/inventory" className="cursor-pointer">
-                                <span>Add Product / Inventory</span>
+                                <span>{t("common.addProduct")}</span>
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                             <Link href="/dashboard/settings" className="cursor-pointer">
-                                <span>Financial Settings</span>
+                                <span>{t("common.financialSettings")}</span>
                             </Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>

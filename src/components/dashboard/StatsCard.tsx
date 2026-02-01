@@ -1,6 +1,9 @@
+"use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { useLanguage } from "@/context/language-context";
 
 interface StatsCardProps {
     title: string;
@@ -21,6 +24,8 @@ export function StatsCard({
     trendValue,
     color = "primary",
 }: StatsCardProps) {
+    const { t } = useLanguage();
+
     return (
         <Card className="hover:shadow-lg transition-all duration-300 border-none bg-white/50 backdrop-blur-sm dark:bg-card/50">
             <CardContent className="p-6">
@@ -63,7 +68,7 @@ export function StatsCard({
                             {trend === "up" ? "+" : ""}
                             {trendValue}
                         </span>
-                        <span className="text-muted-foreground ml-2">গত মাস থেকে</span>
+                        <span className="text-muted-foreground ml-2">{t("dashboard.sinceLastMonth")}</span>
                     </div>
                 )}
             </CardContent>

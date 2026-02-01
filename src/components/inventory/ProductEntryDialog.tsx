@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, Edit } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/context/language-context";
 
 interface ProductEntryDialogProps {
     product?: {
@@ -43,6 +44,7 @@ export function ProductEntryDialog({ product }: ProductEntryDialogProps) {
     const [costPrice, setCostPrice] = useState("");
     const [stock, setStock] = useState("");
     const [type, setType] = useState<"physical" | "digital">("physical");
+    const { t } = useLanguage();
 
     useEffect(() => {
         if (open) {
@@ -105,39 +107,39 @@ export function ProductEntryDialog({ product }: ProductEntryDialogProps) {
                 {isEdit ? (
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                         <Edit className="h-4 w-4" />
-                        <span className="sr-only">সম্পাদনা (Edit)</span>
+                        <span className="sr-only">{t("common.edit")}</span>
                     </Button>
                 ) : (
                     <Button className="gap-2 shadow-lg shadow-primary/25">
                         <Plus size={18} />
-                        নতুন পণ্য যোগ করুন
+                        {t("inventory.addProduct")}
                     </Button>
                 )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? "পণ্য সম্পাদনা (Edit Product)" : "নতুন পণ্য যোগ করুন (Add Product)"}</DialogTitle>
+                    <DialogTitle>{isEdit ? `${t("common.edit")} ${t("inventory.table.product")}` : t("inventory.addProduct")}</DialogTitle>
                     <DialogDescription>
-                        {isEdit ? "পণ্যের তথ্য পরিবর্তন করুন।" : "আপনার ইনভেন্টরিতে নতুন পণ্য যোগ করুন।"}
+                        {isEdit ? t("inventory.description") : t("inventory.description")}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="name">পণ্যের নাম (Product Name)</Label>
+                        <Label htmlFor="name">{t("inventory.table.product")}</Label>
                         <Input
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="উদাহরণ: Rice 25kg"
+                            placeholder={t("inventory.table.product")}
                             required
                         />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>পণ্যের ধরণ (Product Type)</Label>
+                        <Label>{t("inventory.table.category")}</Label>
                         <Select value={type} onValueChange={(value: "physical" | "digital") => setType(value)}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select type" />
+                                <SelectValue placeholder={t("inventory.table.category")} />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="physical">ফিজিক্যাল (Physical)</SelectItem>
@@ -148,7 +150,7 @@ export function ProductEntryDialog({ product }: ProductEntryDialogProps) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="sellingPrice">বিক্রয় মূল্য (Sales Price)</Label>
+                            <Label htmlFor="sellingPrice">{t("inventory.table.sellingPrice")}</Label>
                             <Input
                                 id="sellingPrice"
                                 type="number"
@@ -158,7 +160,7 @@ export function ProductEntryDialog({ product }: ProductEntryDialogProps) {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="costPrice">ক্রয় মূল্য (Cost Price)</Label>
+                            <Label htmlFor="costPrice">{t("inventory.table.buyingPrice")}</Label>
                             <Input
                                 id="costPrice"
                                 type="number"
@@ -169,7 +171,7 @@ export function ProductEntryDialog({ product }: ProductEntryDialogProps) {
                         </div>
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="stock">বর্তমান স্টক (Stock)</Label>
+                        <Label htmlFor="stock">{t("inventory.table.stock")}</Label>
                         <Input
                             id="stock"
                             type="number"
@@ -181,7 +183,7 @@ export function ProductEntryDialog({ product }: ProductEntryDialogProps) {
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isEdit ? "আপডেট করুন" : "সেভ করুন"}
+                            {isEdit ? t("common.save") : t("common.save")}
                         </Button>
                     </DialogFooter>
                 </form>

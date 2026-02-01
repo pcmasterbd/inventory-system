@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Edit } from "lucide-react";
+import { useLanguage } from "@/context/language-context";
 
 interface AccountEntryDialogProps {
     account?: {
@@ -29,6 +30,7 @@ export function AccountEntryDialog({ account }: AccountEntryDialogProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [name, setName] = useState("");
     const [balance, setBalance] = useState("");
+    const { t } = useLanguage();
 
     useEffect(() => {
         if (open) {
@@ -82,30 +84,30 @@ export function AccountEntryDialog({ account }: AccountEntryDialogProps) {
                 ) : (
                     <Button className="w-full">
                         <Plus className="mr-2 h-4 w-4" />
-                        Add Account
+                        {t("accounts.addAccount")}
                     </Button>
                 )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? "অ্যাকাউন্ট আপডেট (Edit)" : "নতুন অ্যাকাউন্ট (Add Account)"}</DialogTitle>
+                    <DialogTitle>{isEdit ? `${t("common.edit")} ${t("common.accounts")}` : t("accounts.addAccount")}</DialogTitle>
                     <DialogDescription>
-                        {isEdit ? "অ্যাকাউন্টের তথ্য পরিবর্তন করুন।" : "নতুন ক্যাশ বা ব্যাংক অ্যাকাউন্ট তৈরি করুন।"}
+                        {isEdit ? t("accounts.description") : t("accounts.description")}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="name">অ্যাকাউন্টের নাম (Name)</Label>
+                        <Label htmlFor="name">{t("accounts.table.accountName")}</Label>
                         <Input
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="যেমন: ব্যাংক এশিয়া, বিকাশ"
+                            placeholder={t("accounts.table.accountName")}
                             required
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="balance">বর্তমান ব্যালেন্স (Balance)</Label>
+                        <Label htmlFor="balance">{t("accounts.table.balance")}</Label>
                         <Input
                             id="balance"
                             type="number"
@@ -118,7 +120,7 @@ export function AccountEntryDialog({ account }: AccountEntryDialogProps) {
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isEdit ? "Update Account" : "Create Account"}
+                            {isEdit ? t("common.save") : t("common.save")}
                         </Button>
                     </DialogFooter>
                 </form>

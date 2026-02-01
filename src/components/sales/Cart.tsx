@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Trash2, Minus, Plus, Loader2, RefreshCcw } from "lucide-react";
 import { CartItem } from "./PosInterface";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/context/language-context";
 
 interface CartProps {
     items: CartItem[];
@@ -31,6 +32,7 @@ export function Cart({
     onCheckout,
     isProcessing
 }: CartProps) {
+    const { t } = useLanguage();
     const [discount, setDiscount] = useState("0");
     const [paidAmount, setPaidAmount] = useState("");
 
@@ -52,7 +54,7 @@ export function Cart({
         <Card className="h-full flex flex-col">
             <CardHeader className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <CardTitle>চলমান বিক্রি (Current Bill)</CardTitle>
+                    <CardTitle>{t("sales.pos.currentBill")}</CardTitle>
                     <Badge variant={total >= 0 ? "default" : "destructive"}>
                         {total >= 0 ? "Sale" : "Refund/Exchange"}
                     </Badge>
@@ -60,10 +62,10 @@ export function Cart({
 
                 <Select value={selectedCustomer} onValueChange={onSelectCustomer}>
                     <SelectTrigger>
-                        <SelectValue placeholder="Select Customer (Optional)" />
+                        <SelectValue placeholder={t("sales.pos.selectCustomer")} />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="walk-in">Walk-in Customer</SelectItem>
+                        <SelectItem value="walk-in">{t("sales.pos.walkIn")}</SelectItem>
                         {customers.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                                 {c.name} ({c.phone})
@@ -76,7 +78,7 @@ export function Cart({
             <CardContent className="flex-1 overflow-y-auto space-y-4">
                 {items.length === 0 ? (
                     <div className="text-center text-muted-foreground py-10">
-                        Cart is empty
+                        {t("sales.pos.cartEmpty")}
                     </div>
                 ) : (
                     items.map(item => {
@@ -118,11 +120,11 @@ export function Cart({
             <CardFooter className="flex-col gap-4 pt-4 bg-muted/20">
                 <div className="w-full space-y-2">
                     <div className="flex justify-between text-sm">
-                        <span>Subtotal:</span>
+                        <span>{t("sales.pos.subtotal")}:</span>
                         <span>৳{subtotal}</span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                        <span className="text-sm">Discount:</span>
+                        <span className="text-sm">{t("sales.pos.discount")}:</span>
                         <Input
                             type="number"
                             className="h-8 w-24 text-right"
@@ -131,11 +133,11 @@ export function Cart({
                         />
                     </div>
                     <div className={`flex justify-between font-bold text-lg ${total < 0 ? 'text-red-600' : ''}`}>
-                        <span>{total >= 0 ? 'Net Payable:' : 'Refund Due:'}</span>
+                        <span>{total >= 0 ? t("sales.pos.netPayable") : t("sales.pos.refundDue")}</span>
                         <span>৳{Math.abs(total)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                        <span className="text-sm">{total >= 0 ? 'Paid:' : 'Refunded:'}</span>
+                        <span className="text-sm">{total >= 0 ? t("sales.pos.paid") : t("sales.pos.refunded")}</span>
                         <Input
                             type="number"
                             className="h-8 w-24 text-right"
@@ -153,7 +155,7 @@ export function Cart({
                     onClick={handleCheckoutClick}
                 >
                     {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {total >= 0 ? 'Complete Sale' : 'Process Refund/Exchange'}
+                    {total >= 0 ? t("sales.pos.completeSale") : t("sales.pos.processRefund")}
                 </Button>
             </CardFooter>
         </Card>

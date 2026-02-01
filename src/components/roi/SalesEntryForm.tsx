@@ -20,6 +20,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useLanguage } from "@/context/language-context";
 
 interface Category {
     id: string;
@@ -32,6 +33,7 @@ interface SalesEntryFormProps {
 }
 
 export function SalesEntryForm({ categories, onSubmit }: SalesEntryFormProps) {
+    const { t } = useLanguage();
     const [isLoading, setIsLoading] = useState(false);
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [categoryId, setCategoryId] = useState("");
@@ -63,15 +65,15 @@ export function SalesEntryForm({ categories, onSubmit }: SalesEntryFormProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>নতুন বিক্রয় যোগ করুন (New Sale)</CardTitle>
+                <CardTitle>{t("roi.salesForm.title")}</CardTitle>
                 <CardDescription>
-                    প্রতিদিনের বিক্রয়ের হিসাব এখানে দিন
+                    {t("roi.salesForm.description")}
                 </CardDescription>
             </CardHeader>
             <form onSubmit={handleSubmit}>
                 <CardContent className="grid gap-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="date">তারিখ (Date)</Label>
+                        <Label htmlFor="date">{t("roi.salesForm.date")}</Label>
                         <Input
                             id="date"
                             type="date"
@@ -81,10 +83,10 @@ export function SalesEntryForm({ categories, onSubmit }: SalesEntryFormProps) {
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="category">ক্যাটাগরি (Category)</Label>
+                        <Label htmlFor="category">{t("roi.salesForm.category")}</Label>
                         <Select onValueChange={setCategoryId} value={categoryId} required>
                             <SelectTrigger id="category">
-                                <SelectValue placeholder="পণ্যের ধরন নির্বাচন করুন" />
+                                <SelectValue placeholder={t("roi.salesForm.selectCategory")} />
                             </SelectTrigger>
                             <SelectContent>
                                 {categories.map((cat) => (
@@ -97,7 +99,7 @@ export function SalesEntryForm({ categories, onSubmit }: SalesEntryFormProps) {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="units">ইউনিট বিক্রি (Units)</Label>
+                            <Label htmlFor="units">{t("roi.salesForm.unitsSold")}</Label>
                             <Input
                                 id="units"
                                 type="number"
@@ -109,7 +111,7 @@ export function SalesEntryForm({ categories, onSubmit }: SalesEntryFormProps) {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="returns">ফেরত (Returns)</Label>
+                            <Label htmlFor="returns">{t("roi.salesForm.returns")}</Label>
                             <Input
                                 id="returns"
                                 type="number"
@@ -124,7 +126,7 @@ export function SalesEntryForm({ categories, onSubmit }: SalesEntryFormProps) {
                 <CardFooter>
                     <Button className="w-full" type="submit" disabled={isLoading}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        সেভ করুন (Save)
+                        {t("roi.salesForm.save")}
                     </Button>
                 </CardFooter>
             </form>

@@ -9,6 +9,7 @@ export async function addParty(data: {
     phone?: string;
     email?: string;
     address?: string;
+    balance?: number;
 }) {
     const supabase = await createClient();
     const {
@@ -35,6 +36,7 @@ export async function updateParty(id: string, data: {
     phone?: string;
     email?: string;
     address?: string;
+    balance?: number;
 }) {
     const supabase = await createClient();
     const {

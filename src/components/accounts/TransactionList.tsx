@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { useLanguage } from "@/context/language-context";
 
 import { DeleteTransactionButton } from "./DeleteTransactionButton";
 
@@ -14,8 +15,9 @@ interface TransactionListProps {
 }
 
 export function TransactionList({ transactions }: TransactionListProps) {
+    const { t } = useLanguage();
     if (transactions.length === 0) {
-        return <div className="text-muted-foreground text-sm">No transactions yet.</div>
+        return <div className="text-muted-foreground text-sm">{t("common.noData")}</div>
     }
 
     return (

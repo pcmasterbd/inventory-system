@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useLanguage } from "@/context/language-context";
 
 type NavItem = {
     href: string;
@@ -32,30 +33,31 @@ type NavItem = {
     children?: { href: string; label: string; icon?: any }[]; // Sub-menu interface
 };
 
-const navItems: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    {
-        href: "/dashboard/sales",
-        label: "Money In",
-        icon: Wallet, // Or ArrowDownLeft from lucide if available, closest common: Wallet/TrendingUp
-        children: [
-            { href: "/dashboard/sales", label: "Invoices (Sales)", icon: ListOrdered },
-            { href: "/dashboard/sales/daily", label: "Daily Sales Entry", icon: ClipboardList },
-        ]
-    },
-    { href: "/dashboard/expenses", label: "Money Out", icon: Receipt },
-    { href: "/dashboard/funds", label: "Accounts", icon: PiggyBank }, // Funds -> Accounts
-    { href: "/dashboard/parties", label: "Vendors", icon: Users }, // Parties -> Vendors
-    { href: "/dashboard/investments", label: "Projects", icon: BarChart3 }, // Investments -> Projects
-    { href: "/dashboard/inventory", label: "Inventory", icon: Package }, // Keep Inventory but maybe lower priority or same
-    { href: "/dashboard/reports", label: "Reports", icon: ClipboardList },
-    { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
-
 export function Sidebar() {
+    const { t } = useLanguage();
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
-    const [expandedMenu, setExpandedMenu] = useState<string | null>("Sales"); // Default expand Sales or null
+    const [expandedMenu, setExpandedMenu] = useState<string | null>("Sales");
+
+    const navItems: NavItem[] = [
+        { href: "/dashboard", label: t("sidebar.overview"), icon: LayoutDashboard },
+        {
+            href: "/dashboard/sales",
+            label: t("sidebar.sales"),
+            icon: Wallet,
+            children: [
+                { href: "/dashboard/sales", label: `${t("sidebar.sales")} (${t("sidebar.invoices")})`, icon: ListOrdered },
+                { href: "/dashboard/sales/daily", label: t("sidebar.dailySales"), icon: ClipboardList },
+            ]
+        },
+        { href: "/dashboard/expenses", label: t("sidebar.expenses"), icon: Receipt },
+        { href: "/dashboard/funds", label: t("sidebar.accounts"), icon: PiggyBank },
+        { href: "/dashboard/parties", label: t("sidebar.parties"), icon: Users },
+        { href: "/dashboard/investments", label: t("sidebar.investments"), icon: BarChart3 },
+        { href: "/dashboard/inventory", label: t("sidebar.inventory"), icon: Package },
+        { href: "/dashboard/reports", label: t("sidebar.reports"), icon: ClipboardList },
+        { href: "/dashboard/settings", label: t("common.settings"), icon: Settings },
+    ];
 
     const toggleSubMenu = (label: string) => {
         setExpandedMenu(expandedMenu === label ? null : label);
@@ -90,7 +92,7 @@ export function Sidebar() {
                     {/* Logo Area */}
                     <div className="h-20 flex items-center px-8 border-b border-border">
                         <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                            PC MASTER<span className="text-foreground"> BD</span>
+                            {t("login.title")}
                         </h1>
                     </div>
 
@@ -185,14 +187,14 @@ export function Sidebar() {
                                 <User size={20} />
                             </div>
                             <div className="flex-1">
-                                <p className="text-sm font-semibold">PCM Admin</p>
-                                <p className="text-xs text-muted-foreground">Owner</p>
+                                <p className="text-sm font-semibold">{t("sidebar.admin")}</p>
+                                <p className="text-xs text-muted-foreground">{t("sidebar.owner")}</p>
                             </div>
                             <form action={signOut}>
                                 <button
                                     type="submit"
                                     className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                    title="Logout"
+                                    title={t("common.logout")}
                                 >
                                     <LogOut size={18} />
                                 </button>

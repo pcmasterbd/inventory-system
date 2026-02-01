@@ -24,8 +24,6 @@ export async function adjustStock(
 
         // 2. Calculate new stock
         const currentStock = product.stock_quantity || 0
-        // If type is 'in', we add. If 'out', we subtract.
-        // Ensure we don't go below 0 if that's a requirement, but usually simple math is fine.
         const adjustment = type === 'in' ? quantity : -quantity
         const newStock = currentStock + adjustment
 
@@ -37,10 +35,6 @@ export async function adjustStock(
 
         if (updateError) throw updateError
 
-        // 4. Log the transaction (if table exists - assuming 'inventory_logs' or similar for now? 
-        // The user didn't ask for logs specifically, but good practice. 
-        // I'll skip creating a new table for now to keep it simple as per "sundor kore dao" request to avoid schema errors if table missing)
-
         revalidatePath('/dashboard/sales')
         return { success: true, newStock }
     } catch (error) {
@@ -51,10 +45,12 @@ export async function adjustStock(
 
 export async function addProduct(data: any) {
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
 
     const { error } = await supabase
         .from('products')
-        .insert([data])
+        .insert([{ ...data, user_id: user.id }])
 
     if (error) throw error
     revalidatePath('/dashboard/inventory')
@@ -63,11 +59,14 @@ export async function addProduct(data: any) {
 
 export async function updateProduct(id: string, data: any) {
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
 
     const { error } = await supabase
         .from('products')
         .update(data)
         .eq('id', id)
+        .eq('user_id', user.id)
 
     if (error) throw error
     revalidatePath('/dashboard/inventory')
@@ -76,7 +75,6 @@ export async function updateProduct(id: string, data: any) {
 
 export async function getProducts() {
     const supabase = await createClient()
-
     const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -95,13 +93,13 @@ export async function purchaseStock({
     quantity,
     unitCost,
     totalCost,
-    accountName
+    accountId
 }: {
     productId: string
     quantity: number
     unitCost: number
     totalCost: number
-    accountName: string
+    accountId: string
 }) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -109,9 +107,7 @@ export async function purchaseStock({
     if (!user) throw new Error("Unauthorized")
 
     try {
-        // 1. Update Product Stock and Cost Price (Weighted Average or just update? Updating is simpler for now)
-        // Let's just update stock quantity. Updating cost price might affect historical data if not careful, 
-        // but user probably wants latest cost. Let's update cost_price too as 'latest cost'.
+        // 1. Update Product Stock and Cost Price
         const { data: product } = await supabase
             .from('products')
             .select('stock_quantity, name')
@@ -122,40 +118,39 @@ export async function purchaseStock({
 
         const newStock = (product.stock_quantity || 0) + quantity
 
-        await supabase.from('products').update({
+        const { error: prodError } = await supabase.from('products').update({
             stock_quantity: newStock,
-            cost_price: unitCost // Update to latest cost price
+            cost_price: unitCost
         }).eq('id', productId)
 
+        if (prodError) throw prodError
+
         // 2. Create Transaction (Expense)
-        await supabase.from('transactions').insert({
+        const { error: txError } = await supabase.from('transactions').insert({
             date: new Date().toISOString(),
             description: `Stock Purchase: ${product.name} (Qty: ${quantity})`,
             amount: totalCost,
-            type: 'expense', // Standardizing on 'expense' vs 'income' for transaction types
-            category: 'Inventory Purchase',
-            payment_method: accountName,
+            transaction_type: 'expense',
+            account_id: accountId,
             user_id: user.id,
-            // If 'transactions' table has specific fields for inventory, use them. 
-            // Assuming simplified 'transactions' table based on prior context.
-            // If it uses 'transaction_type' instead of 'type', need to be careful.
-            // Checking previous roi/page.tsx: it uses 'transaction_type'. 
-            transaction_type: 'expense'
+            category: 'Inventory Purchase'
         })
 
-        // 3. Update Account Balance (Money Out)
-        // Fuzzy match account name
-        const { data: accounts } = await supabase.from('accounts').select('id, name, balance')
-        const account = accounts?.find(a => a.name.toLowerCase().includes(accountName.toLowerCase()))
+        if (txError) {
+            console.error("Transaction Error:", txError)
+            throw txError
+        }
+
+        // 3. Update Account Balance
+        const { data: account } = await supabase.from('accounts').select('balance').eq('id', accountId).single()
 
         if (account) {
-            const newBalance = (account.balance || 0) - totalCost
-            await supabase.from('accounts').update({ balance: newBalance }).eq('id', account.id)
+            const newBalance = (Number(account.balance) || 0) - totalCost
+            await supabase.from('accounts').update({ balance: newBalance }).eq('id', accountId)
         }
 
         revalidatePath('/dashboard/inventory')
-        revalidatePath('/dashboard/expenses')
-        revalidatePath('/dashboard') // Update dashboard stats
+        revalidatePath('/dashboard')
 
         return { success: true }
     } catch (error: any) {
@@ -166,10 +161,14 @@ export async function purchaseStock({
 
 export async function deleteProduct(id: string) {
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
+
     const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', id)
+        .eq('user_id', user.id)
 
     if (error) throw error
     revalidatePath('/dashboard/inventory')

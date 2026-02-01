@@ -6,48 +6,87 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { addTransaction } from '@/app/actions'
-import { PlusCircle, MinusCircle } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { addTransaction } from '@/app/actions/accounts'
+import { useLanguage } from '@/context/language-context'
+import { Account } from '@/lib/types'
+import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
-export function TransactionManager() {
-    // Simple form state
+interface TransactionManagerProps {
+    accounts: Account[];
+}
+
+export function TransactionManager({ accounts }: TransactionManagerProps) {
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(false)
+    const [type, setType] = useState<'income' | 'expense' | 'transfer'>('income')
+    const [accountId, setAccountId] = useState<string>('')
 
-    async function clientAction(formData: FormData) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault()
+        if (!accountId) {
+            toast.error(t("dashboard.selectAccount") || "Please select an account")
+            return
+        }
+
+        const formData = new FormData(e.currentTarget)
+        const amount = parseFloat(formData.get('amount') as string)
+        const description = formData.get('description') as string
+
         setLoading(true)
-        await addTransaction(formData)
-        setLoading(false)
-        // resetting form could be done by ref or vanilla js, simple way for now
-        const form = document.getElementById('transaction-form') as HTMLFormElement
-        form?.reset()
+        try {
+            await addTransaction({
+                account_id: accountId,
+                amount,
+                transaction_type: type,
+                description,
+                category: type === 'income' ? 'Quick Income' : 'Quick Expense'
+            })
+            toast.success(t("common.success") || "Transaction saved")
+            e.currentTarget.reset()
+            setAccountId('')
+        } catch (error) {
+            console.error(error)
+            toast.error(t("common.error") || "Failed to save transaction")
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
         <Card className="h-full">
             <CardHeader>
-                <CardTitle>দ্রুত লেনদেন (Quick Transaction)</CardTitle>
-                <CardDescription>দৈনিক আয় বা ব্যয় রেকর্ড করুন</CardDescription>
+                <CardTitle>{t("dashboard.quickTransaction")}</CardTitle>
+                <CardDescription>{t("dashboard.recordDaily")}</CardDescription>
             </CardHeader>
             <CardContent>
-                <Tabs defaultValue="income" className="w-full">
+                <Tabs defaultValue="income" className="w-full" onValueChange={(v) => setType(v as any)}>
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="income">আয় (Income)</TabsTrigger>
-                        <TabsTrigger value="expense">ব্যয় (Expense)</TabsTrigger>
+                        <TabsTrigger value="income">{t("dashboard.income")}</TabsTrigger>
+                        <TabsTrigger value="expense">{t("dashboard.expense")}</TabsTrigger>
                     </TabsList>
 
                     <div className="mt-4">
-                        <form id="transaction-form" action={clientAction} className="space-y-4">
-                            <input type="hidden" name="type" id="type-input" value="income" />
-
-                            <TabsContent value="income" className="mt-0">
-                                <input type="hidden" name="type" value="income" />
-                            </TabsContent>
-                            <TabsContent value="expense" className="mt-0">
-                                <input type="hidden" name="type" value="expense" />
-                            </TabsContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>{t("dashboard.account")}</Label>
+                                <Select value={accountId} onValueChange={setAccountId} required>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t("dashboard.selectAccount") || "Select Account"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {accounts.map((acc) => (
+                                            <SelectItem key={acc.id} value={acc.id}>
+                                                {acc.name} (৳{acc.balance.toLocaleString()})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="amount">পরিমাণ (Amount)</Label>
+                                <Label htmlFor="amount">{t("dashboard.amountLabel")}</Label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-2.5 text-muted-foreground">৳</span>
                                     <Input id="amount" name="amount" type="number" step="0.01" placeholder="0.00" className="pl-8" required />
@@ -55,12 +94,13 @@ export function TransactionManager() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="description">বিবরণ (Description)</Label>
-                                <Input id="description" name="description" placeholder="লেনদেনের বিবরণ লিখুন..." required />
+                                <Label htmlFor="description">{t("dashboard.descriptionLabel")}</Label>
+                                <Input id="description" name="description" placeholder={t("dashboard.enterDescription")} required />
                             </div>
 
                             <Button type="submit" className="w-full" disabled={loading}>
-                                {loading ? 'সেভ হচ্ছে...' : 'লেনদেন সেভ করুন'}
+                                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {loading ? t("dashboard.saving") : t("dashboard.saveTransaction")}
                             </Button>
                         </form>
                     </div>

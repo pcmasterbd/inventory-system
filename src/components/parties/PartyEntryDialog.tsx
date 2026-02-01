@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Loader2, Edit } from "lucide-react";
 import { addParty, updateParty } from "@/app/actions/parties";
+import { useLanguage } from "@/context/language-context";
 
 interface PartyEntryDialogProps {
     defaultType?: "customer" | "supplier";
@@ -35,6 +36,7 @@ export function PartyEntryDialog({ defaultType = "customer", party }: PartyEntry
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
     const [type, setType] = useState<"customer" | "supplier">(defaultType);
+    const { t } = useLanguage();
 
     useEffect(() => {
         if (open) {
@@ -86,37 +88,37 @@ export function PartyEntryDialog({ defaultType = "customer", party }: PartyEntry
                 {isEdit ? (
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                         <Edit className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
+                        <span className="sr-only">{t("common.edit")}</span>
                     </Button>
                 ) : (
                     <Button className="gap-2 shadow-lg shadow-primary/25">
                         <Plus size={18} />
-                        নতুন {defaultType === 'customer' ? 'কাস্টমার' : 'সাপ্লায়ার'}
+                        {t("parties.addParty")}
                     </Button>
                 )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>
-                        {isEdit ? "পার্টি আপডেট (Edit Party)" : `নতুন ${type === 'customer' ? 'কাস্টমার' : 'সাপ্লায়ার'} (New ${type === 'customer' ? 'Customer' : 'Supplier'})`}
+                        {isEdit ? `${t("common.edit")} ${t("common.parties")}` : t("parties.addParty")}
                     </DialogTitle>
                     <DialogDescription>
-                        {isEdit ? "তথ্য আপডেট করুন।" : "নতুন কাস্টমার বা সাপ্লায়ার যোগ করুন।"}
+                        {isEdit ? t("parties.description") : t("parties.description")}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="name">নাম (Name)</Label>
+                        <Label htmlFor="name">{t("parties.table.name")}</Label>
                         <Input
                             id="name"
-                            placeholder="পুরো নাম / দোকানের নাম"
+                            placeholder={t("parties.table.name")}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="phone">মোবাইল (Phone)</Label>
+                        <Label htmlFor="phone">{t("parties.table.phone")}</Label>
                         <Input
                             id="phone"
                             placeholder="017..."
@@ -125,21 +127,21 @@ export function PartyEntryDialog({ defaultType = "customer", party }: PartyEntry
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="type">ধরণ (Type)</Label>
+                        <Label htmlFor="type">{t("dashboard.type")}</Label>
                         <Select onValueChange={(val: any) => setType(val)} value={type}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="customer">ক্রেতা (Customer)</SelectItem>
-                                <SelectItem value="supplier">সাপ্লায়ার (Supplier)</SelectItem>
+                                <SelectItem value="customer">{t("parties.tabs.customers")}</SelectItem>
+                                <SelectItem value="supplier">{t("parties.tabs.suppliers")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isEdit ? "আপডেট করুন" : "সেভ করুন"}
+                            {isEdit ? t("common.save") : t("common.save")}
                         </Button>
                     </DialogFooter>
                 </form>

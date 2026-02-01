@@ -7,6 +7,7 @@ import { Cart } from "./Cart";
 import { StockManager } from "../inventory/StockManager";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useLanguage } from "@/context/language-context";
 
 interface Product {
     id: string;
@@ -31,6 +32,7 @@ export interface CartItem extends Product {
 }
 
 export function PosInterface({ products, customers }: PosInterfaceProps) {
+    const { t } = useLanguage();
     const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedCustomer, setSelectedCustomer] = useState<string>("");
     const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -45,7 +47,7 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
             const newQty = currentQty + 1;
 
             if (newQty > product.stock_quantity) {
-                toast.warning(`Low Stock Warning: Only ${product.stock_quantity} available`);
+                toast.warning(`${t("sales.pos.lowStock")}: Only ${product.stock_quantity} available`);
             }
 
             if (existing) {
@@ -72,7 +74,7 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
                     // Check stock limit if increasing
                     const product = products.find(p => p.id === productId);
                     if (delta > 0 && product && newQty > product.stock_quantity) {
-                        toast.warning(`Low Stock Warning: Only ${product.stock_quantity} available`);
+                        toast.warning(`${t("sales.pos.lowStock")}: Only ${product.stock_quantity} available`);
                     }
 
                     return { ...item, quantity: newQty };
@@ -109,12 +111,12 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
             });
 
             clearCart();
-            toast.success("Transaction Completed!");
+            toast.success(t("sales.pos.transactionCompleted"));
 
             // Trigger Out of Stock Notifications
             if (outOfStockItems.length > 0) {
                 outOfStockItems.forEach(name => {
-                    toast.error(`Alert: ${name} is now Out of Stock!`, {
+                    toast.error(t("sales.pos.outOfStock", { name }), {
                         duration: 5000,
                         className: "bg-destructive text-destructive-foreground"
                     });
@@ -132,7 +134,7 @@ export function PosInterface({ products, customers }: PosInterfaceProps) {
     return (
         <div className="flex flex-col h-full gap-4">
             <div className="flex justify-between items-center bg-card p-3 rounded-lg border shadow-sm">
-                <h2 className="text-xl font-bold tracking-tight">Point of Sale</h2>
+                <h2 className="text-xl font-bold tracking-tight">{t("sales.pos.title")}</h2>
                 <div className="flex items-center gap-2">
                     <StockManager products={validProducts} />
                 </div>

@@ -4,10 +4,12 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { useLanguage } from "@/context/language-context"
 
 export function DateFilter() {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const { t } = useLanguage()
 
     // Default to current month/year if not set
     const currentYear = new Date().getFullYear().toString()
@@ -19,20 +21,19 @@ export function DateFilter() {
 
     const years = Array.from({ length: 5 }, (_, i) => (parseInt(currentYear) - i).toString())
 
-    // Bangla Month Names
     const months = [
-        { value: "01", label: "জানুয়ারি (Jan)" },
-        { value: "02", label: "ফেব্রুয়ারি (Feb)" },
-        { value: "03", label: "মার্চ (Mar)" },
-        { value: "04", label: "এপ্রিল (Apr)" },
-        { value: "05", label: "মে (May)" },
-        { value: "06", label: "জুন (Jun)" },
-        { value: "07", label: "জুলাই (Jul)" },
-        { value: "08", label: "আগস্ট (Aug)" },
-        { value: "09", label: "সেপ্টেম্বর (Sep)" },
-        { value: "10", label: "অক্টোবর (Oct)" },
-        { value: "11", label: "নভেম্বর (Nov)" },
-        { value: "12", label: "ডিসেম্বর (Dec)" },
+        { value: "01", label: t("reports.filters.months.01") },
+        { value: "02", label: t("reports.filters.months.02") },
+        { value: "03", label: t("reports.filters.months.03") },
+        { value: "04", label: t("reports.filters.months.04") },
+        { value: "05", label: t("reports.filters.months.05") },
+        { value: "06", label: t("reports.filters.months.06") },
+        { value: "07", label: t("reports.filters.months.07") },
+        { value: "08", label: t("reports.filters.months.08") },
+        { value: "09", label: t("reports.filters.months.09") },
+        { value: "10", label: t("reports.filters.months.10") },
+        { value: "11", label: t("reports.filters.months.11") },
+        { value: "12", label: t("reports.filters.months.12") },
     ]
 
     const handleUpdate = (key: string, value: string) => {
@@ -53,8 +54,8 @@ export function DateFilter() {
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="monthly">মাসিক</SelectItem>
-                    <SelectItem value="yearly">বাৎসরিক</SelectItem>
+                    <SelectItem value="monthly">{t("reports.filters.monthly")}</SelectItem>
+                    <SelectItem value="yearly">{t("reports.filters.yearly")}</SelectItem>
                 </SelectContent>
             </Select>
 
@@ -82,7 +83,7 @@ export function DateFilter() {
                         </SelectTrigger>
                         <SelectContent>
                             {months.map((m) => (
-                                <SelectItem key={m.value} value={m.value}>{m.label.split(' ')[0]}</SelectItem>
+                                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

@@ -5,33 +5,33 @@ export type Product = {
     stock_quantity: number
     selling_price: number
     cost_price: number
+    type: 'physical' | 'digital'
+    category_id?: string
+    image_url?: string | null
     created_at: string
+    user_id: string
 }
 
 export type Transaction = {
     id: string
-    type: 'income' | 'expense'
+    account_id: string
     amount: number
+    transaction_type: 'income' | 'expense' | 'transfer'
+    category: string | null
     description: string | null
+    reference_id: string | null
     date: string
-    product_id: string | null
     created_at: string
-    product?: Product // joined
+    user_id: string
+    accounts?: { name: string } // joined
 }
 
-export type DashboardStats = {
-    todaySales: number
-    todayProfit: number
-    totalRoi: number
-    todayAdSpend: number
-    totalSales: number
-    totalCOGS: number
-    totalExpense: number
-    netProfit: number
-    totalStockValue: number
-    cashBalance: number
-    bankBalance: number
-    mobileBalance: number
+export type Account = {
+    id: string
+    name: string
+    balance: number
+    created_at: string
+    user_id: string
 }
 
 export type Party = {
@@ -39,7 +39,43 @@ export type Party = {
     name: string
     type: 'customer' | 'supplier' | 'investor'
     phone: string | null
+    email?: string | null
     address: string | null
     balance: number
     created_at: string
+    user_id: string
+}
+
+export type Investment = {
+    id: string
+    name: string
+    capital_amount: number
+    current_return: number
+    status: 'active' | 'closed'
+    start_date: string
+    created_at: string
+    user_id: string
+}
+
+export type ChartDataEntry = {
+    date: string
+    revenue: number
+    cogs: number
+    expenses: number
+}
+
+export interface SaaSStats {
+    totalRevenue: number
+    operationalExpenses: number
+    fixedCosts: number
+    miscCosts: number
+    marketingCosts: number
+    grossProfit: number
+    netProfit: number
+    currentBalance: number
+    grossMargin: number
+    netProfitMargin: number
+    operatingRatio: number
+    profitStatus: 'Profitable' | 'Loss'
+    totalCOGS: number
 }

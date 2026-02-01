@@ -1,8 +1,9 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, LineChart, Line, AreaChart, Area, CartesianGrid } from "recharts";
-import { DollarSign, TrendingUp, TrendingDown, Percent, Building, Coffee } from "lucide-react";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, AreaChart, Area, CartesianGrid } from "recharts";
+import { DollarSign, TrendingUp, TrendingDown, Percent } from "lucide-react";
+import { useLanguage } from "@/context/language-context";
 
 interface ReportsAnalysisProps {
     monthlyData: {
@@ -24,13 +25,15 @@ interface ReportsAnalysisProps {
 }
 
 export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) {
+    const { t } = useLanguage();
+
     return (
         <div className="space-y-8">
             {/* KPI Cards */}
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">মোট বিক্রয় (Total Sales)</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t("reports.stats.totalSales")}</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -39,7 +42,7 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">মোট খরচ (Total Expenses)</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t("reports.stats.totalExpenses")}</CardTitle>
                         <TrendingDown className="h-4 w-4 text-red-500" />
                     </CardHeader>
                     <CardContent>
@@ -48,7 +51,7 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">নীট লাভ (Net Profit)</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t("reports.stats.netProfit")}</CardTitle>
                         <TrendingUp className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
@@ -59,12 +62,12 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
                 </Card>
                 <Card className="bg-blue-50/50">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Marketing ROI</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t("reports.stats.roi")}</CardTitle>
                         <Percent className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-blue-600">{summary.roi.toFixed(1)}%</div>
-                        <p className="text-xs text-muted-foreground">Based on Ad Spend ৳{summary.totalAdSpend}</p>
+                        <p className="text-xs text-muted-foreground">{t("reports.stats.adSpend")}: ৳{summary.totalAdSpend}</p>
                     </CardContent>
                 </Card>
             </div>
@@ -73,8 +76,8 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
             <div className="grid gap-6 md:grid-cols-2">
                 <Card className="col-span-1">
                     <CardHeader>
-                        <CardTitle>মাসিক আয়-ব্যয় (Income vs Expense)</CardTitle>
-                        <CardDescription>Sales vs Fixed Cost vs Daily Cost</CardDescription>
+                        <CardTitle>{t("reports.charts.incomeVsExpense")}</CardTitle>
+                        <CardDescription>{t("reports.charts.description")}</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -84,10 +87,10 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
                                 <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `৳${value}`} />
                                 <Tooltip formatter={(value) => `৳${Number(value).toLocaleString()}`} />
                                 <Legend />
-                                <Bar dataKey="sales" name="বিক্রয়" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="sales" name={t("dashboard.sales")} fill="#22c55e" radius={[4, 4, 0, 0]} />
                                 {/* Stacked Expenses */}
-                                <Bar dataKey="fixedExpenses" name="ফিক্সড খরচ" stackId="exp" fill="#f59e0b" />
-                                <Bar dataKey="dailyExpenses" name="ডেইলি খরচ" stackId="exp" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="fixedExpenses" name={t("expenses.stats.fixed")} stackId="exp" fill="#f59e0b" />
+                                <Bar dataKey="dailyExpenses" name={t("expenses.stats.daily")} stackId="exp" fill="#ef4444" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -96,8 +99,8 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
                 {/* Ad Spend vs Profit (ROI Analysis) */}
                 <Card className="col-span-1">
                     <CardHeader>
-                        <CardTitle>বিজ্ঞাপন বনাম লাভ (Ads vs Profit)</CardTitle>
-                        <CardDescription>Ad Spend Impact on Net Profit</CardDescription>
+                        <CardTitle>{t("reports.charts.adsVsProfit")}</CardTitle>
+                        <CardDescription>{t("reports.charts.adsDescription")}</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -107,8 +110,8 @@ export function ReportsAnalysis({ monthlyData, summary }: ReportsAnalysisProps) 
                                 <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `৳${value}`} />
                                 <Tooltip formatter={(value) => `৳${Number(value).toLocaleString()}`} />
                                 <Legend />
-                                <Area type="monotone" dataKey="profit" name="নীট লাভ" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
-                                <Area type="monotone" dataKey="adCost" name="বিজ্ঞাপন খরচ" stackId="2" stroke="#f97316" fill="#f97316" fillOpacity={0.2} />
+                                <Area type="monotone" dataKey="profit" name={t("reports.stats.netProfit")} stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
+                                <Area type="monotone" dataKey="adCost" name={t("expenses.categories.marketing")} stackId="2" stroke="#f97316" fill="#f97316" fillOpacity={0.2} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </CardContent>

@@ -17,6 +17,7 @@ import { getDailySales, saveDailySales, DailySaleEntry } from "@/app/actions/dai
 import { getSettings } from "@/app/actions/settings";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/context/language-context";
 
 type Product = {
     id: string;
@@ -37,6 +38,7 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [entries, setEntries] = useState<Record<string, DailySaleEntry>>({});
     const [dollarRate, setDollarRate] = useState(120);
+    const { t } = useLanguage();
 
     // Fetch settings (dollar rate)
     useEffect(() => {
@@ -69,7 +71,7 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
                 setEntries(newEntries);
             } catch (error) {
                 console.error("Error fetching sales:", error);
-                toast.error("Failed to load sales data");
+                toast.error(t("sales.list.details.error") || "Failed to load sales data");
             } finally {
                 setIsLoading(false);
             }
@@ -102,10 +104,10 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
             const dateStr = format(date, "yyyy-MM-dd");
             const entriesList = Object.values(entries);
             await saveDailySales(dateStr, entriesList);
-            toast.success("Sales saved successfully");
+            toast.success(t("settings.financials.saveSuccess") || "Sales saved successfully");
         } catch (error) {
             console.error("Error saving sales:", error);
-            toast.error("Failed to save sales");
+            toast.error(t("settings.financials.saveError") || "Failed to save sales");
         } finally {
             setIsSaving(false);
         }
@@ -136,6 +138,15 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
 
     return (
         <div className="space-y-6">
+            <div className="flex items-center justify-between space-y-2">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">{t("common.dailySales")}</h2>
+                    <p className="text-muted-foreground">
+                        {t("sales.bulk.description")}
+                    </p>
+                </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-4">
                     <Popover>
@@ -148,7 +159,7 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
                                 )}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                {date ? format(date, "PPP") : <span>{t("dashboard.dateRange")}</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -161,17 +172,17 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
                         </PopoverContent>
                     </Popover>
                     <div className="text-sm text-muted-foreground">
-                        Dollar Rate: ৳{dollarRate}
+                        {t("sales.bulk.dollarRate")}: ৳{dollarRate}
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="text-sm text-right hidden lg:block">
-                        <div className="font-medium text-emerald-600">Total Profit: ৳{totalStats.profit.toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground">Ad Cost: ${totalStats.adCost}</div>
+                        <div className="font-medium text-emerald-600">{t("sales.bulk.summary.netProfit")}: ৳{totalStats.profit.toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground">{t("sales.bulk.table.adsDollar")}: ${totalStats.adCost}</div>
                     </div>
                     <Button onClick={handleSave} disabled={isSaving || isLoading} className="gap-2">
                         {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
-                        Save Changes
+                        {t("sales.bulk.save")}
                     </Button>
                 </div>
             </div>
@@ -180,12 +191,12 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow>
-                            <TableHead className="w-[250px]">Product</TableHead>
-                            <TableHead className="text-center w-[100px]">Sold</TableHead>
-                            <TableHead className="text-center w-[100px]">Return</TableHead>
-                            <TableHead className="text-center w-[100px]">Ad Cost ($)</TableHead>
-                            <TableHead className="text-right w-[120px]">Net Sold</TableHead>
-                            <TableHead className="text-right">Profit (est)</TableHead>
+                            <TableHead className="w-[250px]">{t("sales.bulk.table.product")}</TableHead>
+                            <TableHead className="text-center w-[100px]">{t("sales.bulk.table.sold")}</TableHead>
+                            <TableHead className="text-center w-[100px]">{t("sales.bulk.table.return")}</TableHead>
+                            <TableHead className="text-center w-[100px]">{t("sales.bulk.table.adsDollar")}</TableHead>
+                            <TableHead className="text-right w-[120px]">{t("sales.bulk.table.net")}</TableHead>
+                            <TableHead className="text-right">{t("sales.bulk.table.profit")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -193,7 +204,7 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
                             <TableRow>
                                 <TableCell colSpan={6} className="h-24 text-center">
                                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                                    <span className="sr-only">Loading...</span>
+                                    <span className="sr-only">{t("common.loading")}</span>
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -207,7 +218,7 @@ export function DailySalesForm({ products }: DailySalesFormProps) {
                                         <TableCell className="font-medium">
                                             <div>
                                                 {product.name}
-                                                <div className="text-xs text-muted-foreground">Stock: {product.stock_quantity}</div>
+                                                <div className="text-xs text-muted-foreground">{t("inventory.table.stock")}: {product.stock_quantity}</div>
                                             </div>
                                         </TableCell>
                                         <TableCell className="p-2">

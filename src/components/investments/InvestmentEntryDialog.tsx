@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Loader2, Edit } from "lucide-react";
 import { addInvestment, updateInvestment } from "@/app/actions/investments";
+import { useLanguage } from "@/context/language-context";
 
 interface InvestmentEntryDialogProps {
     investment?: {
@@ -36,6 +37,7 @@ export function InvestmentEntryDialog({ investment }: InvestmentEntryDialogProps
     const [capital, setCapital] = useState("");
     const [returns, setReturns] = useState("0");
     const [status, setStatus] = useState<"active" | "closed">("active");
+    const { t } = useLanguage();
 
     useEffect(() => {
         if (open) {
@@ -95,55 +97,55 @@ export function InvestmentEntryDialog({ investment }: InvestmentEntryDialogProps
                 {isEdit ? (
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                         <Edit className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
+                        <span className="sr-only">{t("common.edit")}</span>
                     </Button>
                 ) : (
                     <Button className="gap-2 shadow-lg shadow-primary/25">
                         <Plus size={18} />
-                        নতুন বিনিয়োগ
+                        {t("investments.addInvestment")}
                     </Button>
                 )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? "Edit Investment" : "New Investment"}</DialogTitle>
+                    <DialogTitle>{isEdit ? `${t("common.edit")} ${t("investments.table.portfolio")}` : t("investments.addInvestment")}</DialogTitle>
                     <DialogDescription>
-                        {isEdit ? "Update investment details." : "Add a new investment portfolio."}
+                        {isEdit ? t("investments.description") : t("investments.description")}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Investment Name (খাত)</Label>
-                        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Share Market" required />
+                        <Label>{t("investments.table.portfolio")}</Label>
+                        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("investments.table.portfolio")} required />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Start Date (শুরুর তারিখ)</Label>
+                        <Label>{t("investments.table.startDate")}</Label>
                         <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Capital (মূলধন)</Label>
+                        <Label>{t("investments.table.capital")}</Label>
                         <Input type="number" value={capital} onChange={(e) => setCapital(e.target.value)} required />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Current Return (বর্তমান লাভ/ক্ষতি)</Label>
+                        <Label>{t("investments.table.currentReturn")}</Label>
                         <Input type="number" value={returns} onChange={(e) => setReturns(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Status</Label>
+                        <Label>{t("investments.table.status")}</Label>
                         <Select onValueChange={(val: any) => setStatus(val)} value={status}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="active">Active (চালু)</SelectItem>
-                                <SelectItem value="closed">Closed (বন্ধ)</SelectItem>
+                                <SelectItem value="active">{t("investments.table.active")}</SelectItem>
+                                <SelectItem value="closed">{t("investments.table.closed")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isEdit ? "Update" : "Add Investment"}
+                            {isEdit ? t("common.save") : t("common.save")}
                         </Button>
                     </DialogFooter>
                 </form>

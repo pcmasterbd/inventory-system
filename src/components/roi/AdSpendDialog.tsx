@@ -23,6 +23,7 @@ import {
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { addAdSpend } from "@/app/actions/marketing";
+import { useLanguage } from "@/context/language-context";
 
 interface Product {
     id: string;
@@ -36,6 +37,7 @@ interface AdSpendDialogProps {
 export function AdSpendDialog({ products }: AdSpendDialogProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const { t } = useLanguage();
 
     // Form
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -64,17 +66,17 @@ export function AdSpendDialog({ products }: AdSpendDialogProps) {
             });
 
             if (res.success) {
-                toast.success("Ad Spend Added!");
+                toast.success(t("reports.ads.success"));
                 setOpen(false);
                 setAmountDollar("");
                 // Keep rate and date for convenience
             } else {
-                toast.error("Failed to add ad spend");
+                toast.error(t("reports.ads.error"));
                 console.error(res.message);
             }
         } catch (error) {
             console.error(error);
-            toast.error("Something went wrong");
+            toast.error(t("common.error") || "Something went wrong");
         } finally {
             setIsLoading(false);
         }
@@ -85,19 +87,19 @@ export function AdSpendDialog({ products }: AdSpendDialogProps) {
             <DialogTrigger asChild>
                 <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700">
                     <Plus size={16} />
-                    অ্যাড খরচ যুক্ত করুন (Add Ads)
+                    {t("reports.ads.button")}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>ফেসবুক অ্যাড খরচ (Daily Ads)</DialogTitle>
+                    <DialogTitle>{t("reports.ads.title")}</DialogTitle>
                     <DialogDescription>
-                        ডলারে খরচ এবং রেট দিন, টাকায় হিসাব অটো হবে।
+                        {t("reports.ads.description")}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>তারিখ (Date)</Label>
+                        <Label>{t("reports.ads.date")}</Label>
                         <Input
                             type="date"
                             value={date}
@@ -106,10 +108,10 @@ export function AdSpendDialog({ products }: AdSpendDialogProps) {
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label>প্রোডাক্ট (Product)</Label>
+                        <Label>{t("reports.ads.product")}</Label>
                         <Select onValueChange={setProductId} value={productId} required>
                             <SelectTrigger>
-                                <SelectValue placeholder="সিলেক্ট প্রোডাক্ট" />
+                                <SelectValue placeholder={t("reports.ads.selectProduct")} />
                             </SelectTrigger>
                             <SelectContent>
                                 {products.map((p) => (
@@ -122,7 +124,7 @@ export function AdSpendDialog({ products }: AdSpendDialogProps) {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>Dollar ($)</Label>
+                            <Label>{t("reports.ads.amountDollar")}</Label>
                             <Input
                                 type="number"
                                 placeholder="0.00"
@@ -134,7 +136,7 @@ export function AdSpendDialog({ products }: AdSpendDialogProps) {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Rate (BDT)</Label>
+                            <Label>{t("reports.ads.rate")}</Label>
                             <Input
                                 type="number"
                                 placeholder="120"
@@ -146,14 +148,14 @@ export function AdSpendDialog({ products }: AdSpendDialogProps) {
                     </div>
 
                     <div className="p-3 bg-muted rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground">BDT Amount (Approx)</p>
+                        <p className="text-sm text-muted-foreground">{t("reports.ads.bdtAmount")}</p>
                         <p className="text-2xl font-bold">৳{amountBdt.toLocaleString()}</p>
                     </div>
 
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading || !productId}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Expense
+                            {t("reports.ads.save")}
                         </Button>
                     </DialogFooter>
                 </form>

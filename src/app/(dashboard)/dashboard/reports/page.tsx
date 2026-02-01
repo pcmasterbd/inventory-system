@@ -1,28 +1,74 @@
 import { createClient } from "@/lib/supabase/server";
 import { ReportsAnalysis } from "@/components/reports/ReportsAnalysis";
 import { SalesBreakdown } from "@/components/reports/SalesBreakdown";
+import { ReportsClient } from "@/components/reports/ReportsClient";
+import { getFinancialData } from "@/app/actions/financials";
+import { format, subDays, startOfMonth, startOfYesterday, subMonths, endOfMonth, startOfDay, endOfDay } from "date-fns";
 
-export default async function ReportsPage() {
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ range?: string, account?: string, category?: string }> }) {
+    const params = await searchParams;
     const supabase = await createClient();
 
-    // 1. Fetch Invoices
+    const { accounts, categories, snapshot } = await getFinancialData({
+        range: params.range,
+        account_id: params.account,
+        category: params.category
+    });
+
+    // Date Logic for Report Queries
+    const today = new Date();
+    let startDate = startOfDay(today);
+    let endDate = endOfDay(today);
+    const range = params.range || "today";
+
+    if (range === 'yesterday') {
+        startDate = startOfYesterday();
+        endDate = endOfDay(subDays(today, 1));
+    } else if (range === 'last_7_days') {
+        startDate = startOfDay(subDays(today, 6));
+        endDate = endOfDay(today);
+    } else if (range === 'this_month') {
+        startDate = startOfMonth(today);
+        endDate = endOfDay(today);
+    } else if (range === 'last_month') {
+        startDate = startOfMonth(subMonths(today, 1));
+        endDate = endOfMonth(subMonths(today, 1));
+    } else if (range === 'all_time') {
+        startDate = new Date(0);
+        endDate = endOfDay(today);
+    }
+
+    const startDateStr = format(startDate, "yyyy-MM-dd");
+    const endDateStr = format(endDate, "yyyy-MM-dd");
+    const endDateStrIncludeTime = endDate.toISOString();
+
+    // 1. Fetch Invoices (Filtered)
     const { data: invoices } = await supabase
         .from('invoices')
         .select('id, total_amount, created_at, paid_amount')
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStrIncludeTime)
         .order('created_at', { ascending: true });
 
-    // 2. Fetch Invoice Items for COGS & Breakdown
-    const { data: items } = await supabase
-        .from('invoice_items')
-        .select(`
-            invoice_id,
-            quantity,
-            product_id,
-            unit_price,
-            products (id, name, cost_price)
-        `);
+    // 2. Fetch Invoice Items (Filtered by Invoice IDs fetched above)
+    const invoiceIds = invoices?.map(inv => inv.id) || [];
+    let items: any[] = [];
 
-    // Map items to invoices for easier processing
+    if (invoiceIds.length > 0) {
+        const { data: fetchedItems } = await supabase
+            .from('invoice_items')
+            .select(`
+                invoice_id,
+                quantity,
+                product_id,
+                unit_price,
+                products (id, name, cost_price)
+            `)
+            .in('invoice_id', invoiceIds);
+        items = fetchedItems || [];
+    }
+
+    // Map items...
     const itemsByInvoice = new Map();
     items?.forEach(item => {
         const invId = item.invoice_id;
@@ -32,10 +78,12 @@ export default async function ReportsPage() {
         itemsByInvoice.get(invId).push(item);
     });
 
-    // 3. Fetch Expenses
+    // 3. Fetch Expenses (Filtered)
     const { data: expenses } = await supabase
         .from('roi_expenses')
         .select('amount, expense_type, date')
+        .gte('date', startDateStr)
+        .lte('date', endDateStr)
         .order('date', { ascending: true });
 
     // Constants for Expense Types
@@ -179,21 +227,13 @@ export default async function ReportsPage() {
     };
 
     return (
-        <div className="space-y-8 p-4 md:p-8 pt-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">রিপোর্ট (Reports)</h1>
-                    <p className="text-muted-foreground mt-1">
-                        মাসিক লাভ-ক্ষতি এবং ROI বিশ্লেষণ। (Net Profit = Sales - COGS - Expenses)
-                    </p>
-                </div>
-            </div>
-
-            <ReportsAnalysis monthlyData={monthlyData} summary={summary} />
-
-            <div className="pt-4">
-                <SalesBreakdown data={salesBreakdownData} />
-            </div>
-        </div>
+        <ReportsClient
+            monthlyData={monthlyData}
+            summary={summary}
+            productStats={salesBreakdownData}
+            accounts={accounts}
+            categories={categories}
+            snapshot={snapshot}
+        />
     );
 }

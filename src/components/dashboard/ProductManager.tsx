@@ -1,23 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Product } from "@/lib/types"
-import { addProduct, deleteProduct } from '@/app/actions'
-import { Plus, Trash2 } from 'lucide-react'
+import { deleteProduct } from '@/app/actions/inventory'
+import { Trash2 } from 'lucide-react'
 import { ProductEntryDialog } from '../inventory/ProductEntryDialog'
+import { useLanguage } from '@/context/language-context'
 
 export function ProductManager({ products }: { products: Product[] }) {
+    const { t } = useLanguage();
+
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">প্রোডাক্ট লিস্ট (Inventory)</h2>
-                    <p className="text-muted-foreground">আপনার সব পণ্যের তালিকা</p>
+                    <h2 className="text-2xl font-bold tracking-tight">{t("dashboard.productList")}</h2>
+                    <p className="text-muted-foreground">{t("dashboard.allProducts")}</p>
                 </div>
                 <ProductEntryDialog />
             </div>
@@ -28,18 +28,18 @@ export function ProductManager({ products }: { products: Product[] }) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>নাম (Name)</TableHead>
-                                    <TableHead>স্টক (Stock)</TableHead>
-                                    <TableHead>ক্রয় মূল্য (Cost)</TableHead>
-                                    <TableHead>বিক্রয় মূল্য (Sale)</TableHead>
-                                    <TableHead className="text-right">অ্যাকশন (Action)</TableHead>
+                                    <TableHead>{t("common.name")}</TableHead>
+                                    <TableHead>{t("inventory.product.stock")}</TableHead>
+                                    <TableHead>{t("inventory.product.costPrice")}</TableHead>
+                                    <TableHead>{t("inventory.product.sellingPrice")}</TableHead>
+                                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {products.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                                            কোনো প্রোডাক্ট পাওয়া যায়নি। নতুন প্রোডাক্ট যোগ করুন।
+                                            {t("dashboard.noProducts")}
                                         </TableCell>
                                     </TableRow>
                                 ) : (

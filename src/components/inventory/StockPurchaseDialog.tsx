@@ -23,13 +23,15 @@ import {
 import { Loader2, PlusCircle } from "lucide-react"
 import { toast } from "sonner"
 import { purchaseStock } from "@/app/actions/inventory"
-import { Product } from "@/lib/types"
+import { Product, Account } from "@/lib/types"
+import { useLanguage } from "@/context/language-context"
 
 interface StockPurchaseDialogProps {
     products: Product[];
+    accounts: Account[];
 }
 
-export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
+export function StockPurchaseDialog({ products, accounts }: StockPurchaseDialogProps) {
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -37,10 +39,10 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
     const [selectedProductId, setSelectedProductId] = useState<string>("")
     const [quantity, setQuantity] = useState("")
     const [unitCost, setUnitCost] = useState("")
-    const [account, setAccount] = useState("cash") // Default to cash for now, ideally fetch accounts
+    const [accountId, setAccountId] = useState<string>("")
+    const { t } = useLanguage()
 
     // Derived
-    const selectedProduct = products.find(p => p.id === selectedProductId)
     const totalCost = (parseFloat(quantity) || 0) * (parseFloat(unitCost) || 0)
 
     const handleProductChange = (productId: string) => {
@@ -54,7 +56,11 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!selectedProductId) {
-            toast.error("Please select a product")
+            toast.error(t("inventory.selectProduct") || "Please select a product")
+            return
+        }
+        if (!accountId) {
+            toast.error(t("dashboard.selectAccount") || "Please select an account")
             return
         }
 
@@ -65,18 +71,19 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
                 quantity: Number(quantity),
                 unitCost: Number(unitCost),
                 totalCost,
-                accountName: account
+                accountId: accountId
             })
 
-            toast.success("Stock added and expense recorded!")
+            toast.success(t("common.success") || "Stock added and expense recorded!")
             setOpen(false)
             // Reset form
             setQuantity("")
             setUnitCost("")
             setSelectedProductId("")
-        } catch (error) {
+            setAccountId("")
+        } catch (error: any) {
             console.error(error)
-            toast.error("Failed to purchase stock")
+            toast.error(error.message || t("common.error") || "Failed to purchase stock")
         } finally {
             setIsLoading(false)
         }
@@ -87,29 +94,29 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
             <DialogTrigger asChild>
                 <Button variant="secondary" className="gap-2">
                     <PlusCircle size={18} />
-                    স্টক ইন (Purchase Stock)
+                    {t("inventory.purchaseStock")}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>স্টক কিনুন (Stock Purchase)</DialogTitle>
+                    <DialogTitle>{t("inventory.purchaseStock")}</DialogTitle>
                     <DialogDescription>
-                        পণ্যের স্টক বাড়ান এবং খরচ (Expense) হিসেবে রেকর্ড করুন।
+                        {t("inventory.description")}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
 
                     {/* Product Select */}
                     <div className="grid gap-2">
-                        <Label>পণ্য নির্বাচন করুন (Select Product)</Label>
+                        <Label>{t("inventory.table.product")}</Label>
                         <Select value={selectedProductId} onValueChange={handleProductChange}>
                             <SelectTrigger>
-                                <SelectValue placeholder="পণ্য খুঁজুন..." />
+                                <SelectValue placeholder={t("inventory.table.product")} />
                             </SelectTrigger>
                             <SelectContent>
                                 {products.map((p) => (
                                     <SelectItem key={p.id} value={p.id}>
-                                        {p.name} (Current: {p.stock_quantity})
+                                        {p.name} ({t("inventory.table.stock")}: {p.stock_quantity})
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -118,7 +125,7 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>পরিমাণ (Quantity)</Label>
+                            <Label>{t("sales.list.details.qty")}</Label>
                             <Input
                                 type="number"
                                 value={quantity}
@@ -129,7 +136,7 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>ইউনিট খরচ (Unit Cost)</Label>
+                            <Label>{t("inventory.table.buyingPrice")}</Label>
                             <Input
                                 type="number"
                                 value={unitCost}
@@ -143,21 +150,23 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
 
                     {/* Total Cost Display */}
                     <div className="p-3 bg-muted rounded-lg flex justify-between items-center">
-                        <span className="text-sm font-medium">মোট খরচ (Total Cost):</span>
+                        <span className="text-sm font-medium">{t("sales.list.details.total")}:</span>
                         <span className="text-lg font-bold">৳{totalCost.toLocaleString()}</span>
                     </div>
 
-                    {/* Account Select (Simplified) */}
+                    {/* Account Select */}
                     <div className="grid gap-2">
-                        <Label>পেমেন্ট মাধ্যম (Payment Account)</Label>
-                        <Select value={account} onValueChange={setAccount}>
+                        <Label>{t("dashboard.account")}</Label>
+                        <Select value={accountId} onValueChange={setAccountId} required>
                             <SelectTrigger>
-                                <SelectValue placeholder="Account" />
+                                <SelectValue placeholder={t("dashboard.selectAccount") || "Select Account"} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="cash">Cash</SelectItem>
-                                <SelectItem value="bank">Bank</SelectItem>
-                                <SelectItem value="bkash">Bkash</SelectItem>
+                                {accounts.map((acc) => (
+                                    <SelectItem key={acc.id} value={acc.id}>
+                                        {acc.name} (৳{acc.balance.toLocaleString()})
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -165,7 +174,7 @@ export function StockPurchaseDialog({ products }: StockPurchaseDialogProps) {
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading || !selectedProductId}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Confirm Purchase
+                            {t("common.save")}
                         </Button>
                     </DialogFooter>
                 </form>

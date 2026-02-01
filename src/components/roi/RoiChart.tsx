@@ -11,6 +11,7 @@ import {
     Legend,
     CartesianGrid
 } from "recharts";
+import { useLanguage } from "@/context/language-context";
 
 interface DailyData {
     date: string;
@@ -23,10 +24,11 @@ interface RoiChartProps {
 }
 
 export function RoiChart({ data }: RoiChartProps) {
+    const { t } = useLanguage();
     return (
         <Card className="col-span-4">
             <CardHeader>
-                <CardTitle>লাভ এবং আয়ের গ্রাফ (Revenue vs Profit)</CardTitle>
+                <CardTitle>{t("reports.roiChart.title") || "Revenue vs Profit"}</CardTitle>
             </CardHeader>
             <CardContent className="pl-2">
                 <ResponsiveContainer width="100%" height={350}>
@@ -53,13 +55,13 @@ export function RoiChart({ data }: RoiChartProps) {
                         <Legend />
                         <Bar
                             dataKey="revenue"
-                            name="আয় (Revenue)"
+                            name={t("reports.roiChart.revenue") || "Revenue"}
                             fill="#adfa1d" // Bright green for revenue
                             radius={[4, 4, 0, 0]}
                         />
                         <Bar
                             dataKey="profit"
-                            name="লাভ (Profit)"
+                            name={t("reports.roiChart.profit") || "Profit"}
                             fill="#2563eb" // Blue for profit
                             radius={[4, 4, 0, 0]}
                         />

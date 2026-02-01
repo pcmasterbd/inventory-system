@@ -13,6 +13,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useLanguage } from "@/context/language-context";
 
 interface Product {
     id: string;
@@ -34,6 +35,7 @@ interface BulkSalesInterfaceProps {
 }
 
 export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
+    const { t } = useLanguage();
     // State to hold input values for each product
     const [inputs, setInputs] = useState<Record<string, RowData>>({});
     const [isSaving, setIsSaving] = useState(false);
@@ -256,12 +258,12 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
             <CardHeader className="px-0 pt-0 pb-6 shrink-0">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-xl">দৈনিক বিক্রি ও লাভ রিপোর্ট (Daily Sales & Profit)</CardTitle>
-                        <CardDescription>Enter sales, updated cost prices, and ad spend per product.</CardDescription>
+                        <CardTitle className="text-xl">{t("sales.bulk.title")}</CardTitle>
+                        <CardDescription>{t("sales.bulk.description")}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2 w-full md:w-auto">
                         <div className="flex items-center gap-2 bg-slate-100 p-2 rounded-lg">
-                            <span className="text-sm font-semibold text-slate-600">Dollar Rate:</span>
+                            <span className="text-sm font-semibold text-slate-600">{t("sales.bulk.dollarRate")}:</span>
                             <Input
                                 type="number"
                                 className="w-24 h-8 bg-white"
@@ -274,7 +276,7 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
                         </Button>
                         <Button onClick={onSave} disabled={isSaving} size="sm" className="bg-purple-700 hover:bg-purple-800">
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            Save
+                            {t("sales.bulk.save")}
                         </Button>
                     </div>
                 </div>
@@ -284,21 +286,21 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
                     <Table>
                         <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                             <TableRow>
-                                <TableHead className="w-[180px] font-bold">Product</TableHead>
-                                <TableHead className="text-center font-bold bg-blue-50/50 w-[80px]">Sold</TableHead>
-                                <TableHead className="text-center font-bold bg-red-50/50 w-[80px]">Return</TableHead>
-                                <TableHead className="text-center font-bold border-r w-[60px]">Net</TableHead>
+                                <TableHead className="w-[180px] font-bold">{t("sales.bulk.table.product")}</TableHead>
+                                <TableHead className="text-center font-bold bg-blue-50/50 w-[80px]">{t("sales.bulk.table.sold")}</TableHead>
+                                <TableHead className="text-center font-bold bg-red-50/50 w-[80px]">{t("sales.bulk.table.return")}</TableHead>
+                                <TableHead className="text-center font-bold border-r w-[60px]">{t("sales.bulk.table.net")}</TableHead>
 
-                                <TableHead className="text-right font-bold w-[100px]">Revenue</TableHead>
+                                <TableHead className="text-right font-bold w-[100px]">{t("sales.bulk.table.revenue")}</TableHead>
 
-                                <TableHead className="text-right font-bold bg-orange-50/50 w-[90px] border-l">Unit Cost</TableHead>
-                                <TableHead className="text-right font-bold bg-orange-50/50 w-[100px] border-r">Total COGS</TableHead>
+                                <TableHead className="text-right font-bold bg-orange-50/50 w-[90px] border-l">{t("sales.bulk.table.unitCost")}</TableHead>
+                                <TableHead className="text-right font-bold bg-orange-50/50 w-[100px] border-r">{t("sales.bulk.table.totalCogs")}</TableHead>
 
-                                <TableHead className="text-center font-bold bg-indigo-50/50 w-[90px]">Ads ($)</TableHead>
-                                <TableHead className="text-right font-bold bg-indigo-50/50 w-[100px] border-r">Ads (BDT)</TableHead>
+                                <TableHead className="text-center font-bold bg-indigo-50/50 w-[90px]">{t("sales.bulk.table.adsDollar")}</TableHead>
+                                <TableHead className="text-right font-bold bg-indigo-50/50 w-[100px] border-r">{t("sales.bulk.table.adsBdt")}</TableHead>
 
-                                <TableHead className="text-right font-bold bg-green-50/50 text-green-700">Profit</TableHead>
-                                <TableHead className="text-right font-bold bg-green-50/50 text-green-700">ROI %</TableHead>
+                                <TableHead className="text-right font-bold bg-green-50/50 text-green-700">{t("sales.bulk.table.profit")}</TableHead>
+                                <TableHead className="text-right font-bold bg-green-50/50 text-green-700">{t("sales.bulk.table.roi")}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -383,7 +385,7 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
 
                             {/* Sticky Footer */}
                             <TableRow className="bg-slate-900 text-white hover:bg-slate-900 font-bold sticky bottom-0">
-                                <TableCell>TOTAL</TableCell>
+                                <TableCell>{t("sales.bulk.table.total")}</TableCell>
                                 <TableCell className="text-center">{totals.unitsSold}</TableCell>
                                 <TableCell className="text-center">{totals.returnCount}</TableCell>
                                 <TableCell className="text-center border-r">{totals.actualSold}</TableCell>
@@ -404,7 +406,7 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
             <div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
                 <Card className="md:col-span-2">
                     <CardHeader className="py-3">
-                        <CardTitle className="text-base">Operational Expenses (অফিস খরচ)</CardTitle>
+                        <CardTitle className="text-base">{t("sales.bulk.expenses.title")}</CardTitle>
                     </CardHeader>
                     <CardContent className="py-2">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -422,7 +424,7 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
                             ))}
                         </div>
                         <div className="flex justify-between items-center mt-3 pt-2 border-t font-bold">
-                            <span>Total Ops Expense</span>
+                            <span>{t("sales.bulk.expenses.total")}</span>
                             <span className="text-red-600">৳{totalOpExpense.toLocaleString()}</span>
                         </div>
                     </CardContent>
@@ -430,25 +432,25 @@ export function BulkSalesInterface({ products }: BulkSalesInterfaceProps) {
 
                 <Card>
                     <CardHeader className="py-3">
-                        <CardTitle className="text-base">Final Summary</CardTitle>
+                        <CardTitle className="text-base">{t("sales.bulk.summary.title")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 py-2">
                         <div className="flex justify-between text-sm">
-                            <span>Product Profit</span>
+                            <span>{t("sales.bulk.summary.productProfit")}</span>
                             <span className="font-semibold">৳{totals.productNetProfit.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-sm text-red-600">
-                            <span>(-) Ops Expense</span>
+                            <span>(-) {t("sales.bulk.summary.opsExpense")}</span>
                             <span>৳{totalOpExpense.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-lg font-bold border-t pt-2">
-                            <span>Net Profit</span>
+                            <span>{t("sales.bulk.summary.netProfit")}</span>
                             <span className={finalNetProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
                                 ৳{finalNetProfit.toLocaleString()}
                             </span>
                         </div>
                         <div className="flex justify-between text-sm items-center bg-yellow-50 p-2 rounded">
-                            <span>Overall ROI</span>
+                            <span>{t("sales.bulk.summary.overallRoi")}</span>
                             <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
                                 {overallROI.toFixed(2)}%
                             </Badge>

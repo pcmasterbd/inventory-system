@@ -6,6 +6,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { useLanguage } from "@/context/language-context";
 import {
     Table,
     TableBody,
@@ -29,29 +30,30 @@ interface Product {
 interface ProductListProps {
     initialProducts: any[]; // relaxed type for now
 }
-
 export function ProductList({ initialProducts }: ProductListProps) {
+    const { t } = useLanguage();
+
     return (
         <Card className="h-full">
             <CardHeader>
-                <CardTitle>Product List ({initialProducts.length})</CardTitle>
+                <CardTitle>{t("inventory.table.product")} ({initialProducts.length})</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead className="text-right">Cost</TableHead>
-                            <TableHead className="text-right">Price</TableHead>
-                            <TableHead className="text-right">Stock</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
+                            <TableHead>{t("inventory.table.product")}</TableHead>
+                            <TableHead className="text-right">{t("inventory.table.buyingPrice")}</TableHead>
+                            <TableHead className="text-right">{t("inventory.table.sellingPrice")}</TableHead>
+                            <TableHead className="text-right">{t("inventory.table.stock")}</TableHead>
+                            <TableHead className="text-right">{t("inventory.table.actions")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {initialProducts.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                                    No products found.
+                                    {t("common.noData")}
                                 </TableCell>
                             </TableRow>
                         ) : (

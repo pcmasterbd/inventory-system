@@ -2,6 +2,7 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useLanguage } from "@/context/language-context";
 
 interface ProductStat {
     name: string;
@@ -20,6 +21,7 @@ interface SalesBreakdownProps {
 }
 
 export function SalesBreakdown({ data }: SalesBreakdownProps) {
+    const { t } = useLanguage();
     // Calculate Totals
     const totals = data.reduce((acc, curr) => ({
         unitsSold: acc.unitsSold + curr.unitsSold,
@@ -40,32 +42,32 @@ export function SalesBreakdown({ data }: SalesBreakdownProps) {
     return (
         <Card>
             <CardHeader className="bg-purple-700 text-white rounded-t-xl">
-                <CardTitle>Sales Breakdown</CardTitle>
-                <CardDescription className="text-purple-100">Product-wise performance analysis</CardDescription>
+                <CardTitle>{t("reports.breakdown.title")}</CardTitle>
+                <CardDescription className="text-purple-100">{t("reports.breakdown.description")}</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
                 <Table>
                     <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                            <TableHead className="w-[200px] font-bold">Product</TableHead>
-                            <TableHead className="text-center bg-yellow-50 text-yellow-900 font-bold border-l">Units Sold</TableHead>
-                            <TableHead className="text-center bg-yellow-50 text-yellow-900 font-bold">Return</TableHead>
-                            <TableHead className="text-center bg-yellow-50 text-yellow-900 font-bold border-r">Actual Sold</TableHead>
+                            <TableHead className="w-[200px] font-bold">{t("inventory.table.product")}</TableHead>
+                            <TableHead className="text-center bg-yellow-50 text-yellow-900 font-bold border-l">{t("reports.breakdown.unitsSold")}</TableHead>
+                            <TableHead className="text-center bg-yellow-50 text-yellow-900 font-bold">{t("sales.return")}</TableHead>
+                            <TableHead className="text-center bg-yellow-50 text-yellow-900 font-bold border-r">{t("reports.breakdown.actualSold")}</TableHead>
 
-                            <TableHead className="text-right font-bold">Revenue</TableHead>
-                            <TableHead className="text-right font-bold border-r">Total Revenue</TableHead>
+                            <TableHead className="text-right font-bold">{t("sales.revenue")}</TableHead>
+                            <TableHead className="text-right font-bold border-r">{t("reports.stats.totalSales")}</TableHead>
 
-                            <TableHead className="text-right bg-orange-50 text-orange-900 font-bold">Per COGS</TableHead>
-                            <TableHead className="text-right bg-orange-50 text-orange-900 font-bold border-r">Total COGS</TableHead>
+                            <TableHead className="text-right bg-orange-50 text-orange-900 font-bold">{t("reports.breakdown.perCOGS")}</TableHead>
+                            <TableHead className="text-right bg-orange-50 text-orange-900 font-bold border-r">{t("reports.breakdown.totalCOGS")}</TableHead>
 
-                            <TableHead className="text-right bg-green-50 text-green-900 font-bold">Gross Profit</TableHead>
+                            <TableHead className="text-right bg-green-50 text-green-900 font-bold">{t("reports.stats.grossProfit")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {data.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
-                                    No sales data found for this period.
+                                    {t("common.noData")}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -92,7 +94,7 @@ export function SalesBreakdown({ data }: SalesBreakdownProps) {
                     {data.length > 0 && (
                         <TableBody className="border-t-2 border-purple-200">
                             <TableRow className="bg-purple-50 hover:bg-purple-50 font-bold">
-                                <TableCell>Grand Total</TableCell>
+                                <TableCell>{t("reports.stats.total")}</TableCell>
                                 <TableCell className="text-center border-l">{totals.unitsSold}</TableCell>
                                 <TableCell className="text-center text-red-600">{totals.returnCount}</TableCell>
                                 <TableCell className="text-center border-r">{totals.actualSold}</TableCell>

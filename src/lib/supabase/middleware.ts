@@ -31,9 +31,18 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
+    // IMPORTANT: DO NOT remove done.auth.getUser()
+    // This is required to refresh the session
     const {
         data: { user },
+        error,
     } = await supabase.auth.getUser()
+
+    if (error) {
+        // If there's an error (like invalid refresh token), we should still 
+        // proceed but 'user' will be null, triggering the redirect logic below.
+        console.warn('Auth session update warning:', error.message)
+    }
 
     // Protected Routes Logic
     // If no user and trying to access dashboard, redirect to login

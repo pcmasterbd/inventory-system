@@ -9,6 +9,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLanguage } from "@/context/language-context";
 
 interface SalesSummaryProps {
     data: {
@@ -20,6 +21,7 @@ interface SalesSummaryProps {
 }
 
 export function SalesSummary({ data }: SalesSummaryProps) {
+    const { t } = useLanguage();
     // Calculate totals
     const totalRevenue = data.reduce((acc, item) => acc + item.revenue, 0);
     const totalSold = data.reduce((acc, item) => acc + item.totalSold, 0);
@@ -28,9 +30,9 @@ export function SalesSummary({ data }: SalesSummaryProps) {
     return (
         <Card className="h-full border-none shadow-none">
             <CardHeader className="px-0 pt-0">
-                <CardTitle>পণ্য ভিত্তিক বিক্রয় সারসংক্ষেপ (Product Sales Summary)</CardTitle>
+                <CardTitle>{t("sales.summary.title")}</CardTitle>
                 <CardDescription>
-                    বিক্রয় এবং ফেরতের বিস্তারিত তথ্য
+                    {t("sales.summary.description")}
                 </CardDescription>
             </CardHeader>
             <CardContent className="px-0">
@@ -38,18 +40,18 @@ export function SalesSummary({ data }: SalesSummaryProps) {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Product Name</TableHead>
-                                <TableHead className="text-right">Total Sold</TableHead>
-                                <TableHead className="text-right">Total Returned</TableHead>
-                                <TableHead className="text-right">Net Qty</TableHead>
-                                <TableHead className="text-right">Net Revenue</TableHead>
+                                <TableHead>{t("sales.summary.productName")}</TableHead>
+                                <TableHead className="text-right">{t("sales.summary.totalSold")}</TableHead>
+                                <TableHead className="text-right">{t("sales.summary.totalReturned")}</TableHead>
+                                <TableHead className="text-right">{t("sales.summary.netQty")}</TableHead>
+                                <TableHead className="text-right">{t("sales.summary.netRevenue")}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {data.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        No sales data available.
+                                        {t("sales.summary.noData")}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -75,7 +77,7 @@ export function SalesSummary({ data }: SalesSummaryProps) {
                         {data.length > 0 && (
                             <TableBody className="bg-muted/50 border-t-2 font-bold">
                                 <TableRow>
-                                    <TableCell>Total</TableCell>
+                                    <TableCell>{t("sales.summary.total")}</TableCell>
                                     <TableCell className="text-right text-emerald-700">{totalSold}</TableCell>
                                     <TableCell className="text-right text-red-700">{totalReturned}</TableCell>
                                     <TableCell className="text-right">{totalSold - totalReturned}</TableCell>
